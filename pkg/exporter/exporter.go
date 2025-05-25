@@ -3,13 +3,14 @@ package exporter
 import (
 	"crypto/tls"
 	"fmt"
-	"io"
 	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
 	"time"
 	"unicode"
+
+	"clickhouse-metric-exporter/pkg/exporter/util"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/rs/zerolog/log"
@@ -27,12 +28,9 @@ type Exporter struct {
 	eventsURI       string
 	partsURI        string
 	disksMetricURI  string
-	client          *http.Client
 
 	scrapeFailures prometheus.Counter
-
-	user     string
-	password string
+	clickConn      util.ClickhouseConn
 }
 
 // NewExporter returns an initialized Exporter.
@@ -69,14 +67,16 @@ func NewExporter(uri url.URL, insecure bool, user, password string) *Exporter {
 			Name:      "exporter_scrape_failures_total",
 			Help:      "Number of errors while scraping clickhouse.",
 		}),
-		client: &http.Client{
-			Transport: &http.Transport{
-				TLSClientConfig: &tls.Config{InsecureSkipVerify: insecure},
+		clickConn: util.ClickhouseConn{
+			Client: &http.Client{
+				Transport: &http.Transport{
+					TLSClientConfig: &tls.Config{InsecureSkipVerify: insecure},
+				},
+				Timeout: 30 * time.Second,
 			},
-			Timeout: 30 * time.Second,
+			User:     user,
+			Password: password,
 		},
-		user:     user,
-		password: password,
 	}
 }
 
@@ -204,36 +204,6 @@ func (e *Exporter) collect(ch chan<- prometheus.Metric) error {
 	return nil
 }
 
-func (e *Exporter) handleResponse(uri string) ([]byte, error) {
-	req, err := http.NewRequest("GET", uri, nil)
-	if err != nil {
-		return nil, err
-	}
-	if e.user != "" && e.password != "" {
-		req.Header.Set("X-ClickHouse-User", e.user)
-		req.Header.Set("X-ClickHouse-Key", e.password)
-	}
-	resp, err := e.client.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("error scraping clickhouse: %v", err)
-	}
-	defer func() {
-		if err := resp.Body.Close(); err != nil {
-			log.Error().Err(err).Msg("can't close resp.Body")
-		}
-	}()
-
-	data, err := io.ReadAll(resp.Body)
-	if resp.StatusCode < 200 || resp.StatusCode >= 400 {
-		if err != nil {
-			data = []byte(err.Error())
-		}
-		return nil, fmt.Errorf("status %s (%d): %s", resp.Status, resp.StatusCode, data)
-	}
-
-	return data, nil
-}
-
 type lineResult struct {
 	key   string
 	value float64
@@ -249,7 +219,7 @@ func parseNumber(s string) (float64, error) {
 }
 
 func (e *Exporter) parseKeyValueResponse(uri string) ([]lineResult, error) {
-	data, err := e.handleResponse(uri)
+	data, err := e.clickConn.ExecuteURI(uri)
 	if err != nil {
 		return nil, err
 	}
@@ -284,7 +254,7 @@ type diskResult struct {
 }
 
 func (e *Exporter) parseDiskResponse(uri string) ([]diskResult, error) {
-	data, err := e.handleResponse(uri)
+	data, err := e.clickConn.ExecuteURI(uri)
 	if err != nil {
 		return nil, err
 	}
@@ -328,7 +298,7 @@ type partsResult struct {
 }
 
 func (e *Exporter) parsePartsResponse(uri string) ([]partsResult, error) {
-	data, err := e.handleResponse(uri)
+	data, err := e.clickConn.ExecuteURI(uri)
 	if err != nil {
 		return nil, err
 	}
