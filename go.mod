@@ -1,4 +1,4 @@
-module github.com/ClickHouse/clickhouse_exporter
+module clickhouse-metric-exporter
 
 go 1.23
 
