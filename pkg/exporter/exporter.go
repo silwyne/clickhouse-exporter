@@ -32,6 +32,11 @@ type Exporter struct {
 	clickConn      util.ClickhouseConn
 }
 
+type LineResult struct {
+	key   string
+	value float64
+}
+
 // NewExporter returns an initialized Exporter.
 func NewExporter(uri url.URL, insecure bool, user, password string) *Exporter {
 	q := uri.Query()

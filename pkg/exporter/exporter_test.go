@@ -1,6 +1,7 @@
 package exporter
 
 import (
+	"clickhouse-metric-exporter/pkg/util"
 	"net/url"
 	"testing"
 
@@ -53,7 +54,7 @@ func TestParseNumber(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		out, err := parseNumber(tc.in)
+		out, err := util.ParseNumber(tc.in)
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
