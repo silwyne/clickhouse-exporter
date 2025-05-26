@@ -10,3 +10,5 @@ services:
         BUILD_HTTP_PROXY: ${BUILD_HTTP_PROXY}
         BUILD_HTTPS_PROXY: ${BUILD_HTTPS_PROXY}
         PORT: ${PORT}
+    env_file:
+      - .env
