@@ -1,6 +1,5 @@
 .idea/
 .build/
-clickhouse_exporter
-coverage.txt
 
+coverage.txt
 .env
