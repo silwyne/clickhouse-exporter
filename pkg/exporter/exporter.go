@@ -23,8 +23,8 @@ const (
 // Exporter collects clickhouse stats from the given URI and exports them using
 // the prometheus metrics package.
 type Exporter struct {
-	basicMetricsExporter exporters.BasicMetrics
-	asyncMetricsExporter exporters.AsyncMetrics
+	basicMetricsExporter exporters.BasicMetricsExporter
+	asyncMetricsExporter exporters.AsyncMetricsExporter
 	eventsURI            string
 	partsURI             string
 	disksMetricURI       string
@@ -38,13 +38,13 @@ func NewExporter(uri url.URL, insecure bool, user, password string) *Exporter {
 
 	q := uri.Query()
 
-	basicMetricsExporter := exporters.NewBasicMetric(
+	basicMetricsExporter := exporters.NewBasicMetricsExporter(
 		"select metric, value from system.metrics",
 		uri,
 		namespace,
 	)
 
-	asyncMetricsExporter := exporters.NewAsyncMetrics(
+	asyncMetricsExporter := exporters.NewAsyncMetricsExporter(
 		"select replaceRegexpAll(toString(metric), '-', '_') AS metric, value from system.asynchronous_metrics",
 		uri,
 		namespace,

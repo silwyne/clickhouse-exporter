@@ -7,26 +7,26 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
-type BasicMetrics struct {
+type BasicMetricsExporter struct {
 	Namespace string
 	QueryURI  string
 }
 
-func NewBasicMetric(query string, uri url.URL, namespace string) BasicMetrics {
+func NewBasicMetricsExporter(query string, uri url.URL, namespace string) BasicMetricsExporter {
 
 	url_values := uri.Query()
 
 	metricsURI := uri
-	url_values.Set("query", "select metric, value from system.metrics")
+	url_values.Set("query", query)
 	metricsURI.RawQuery = url_values.Encode()
 
-	return BasicMetrics{
+	return BasicMetricsExporter{
 		QueryURI:  metricsURI.String(),
 		Namespace: namespace,
 	}
 }
 
-func (e *BasicMetrics) Collect(resultLines []util.LineResult, ch chan<- prometheus.Metric) {
+func (e *BasicMetricsExporter) Collect(resultLines []util.LineResult, ch chan<- prometheus.Metric) {
 	for _, am := range resultLines {
 		newMetric := prometheus.NewGaugeVec(prometheus.GaugeOpts{
 			Namespace: e.Namespace,
