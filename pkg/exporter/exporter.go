@@ -23,11 +23,11 @@ const (
 // Exporter collects clickhouse stats from the given URI and exports them using
 // the prometheus metrics package.
 type Exporter struct {
-	basicMetrics    exporters.BasicMetrics
-	asyncMetricsURI string
-	eventsURI       string
-	partsURI        string
-	disksMetricURI  string
+	basicMetricsExporter exporters.BasicMetrics
+	asyncMetricsExporter exporters.AsyncMetrics
+	eventsURI            string
+	partsURI             string
+	disksMetricURI       string
 
 	scrapeFailures prometheus.Counter
 	clickConn      util.ClickhouseConn
@@ -36,16 +36,19 @@ type Exporter struct {
 // NewExporter returns an initialized Exporter.
 func NewExporter(uri url.URL, insecure bool, user, password string) *Exporter {
 
-	basicMetrics := exporters.NewBasicMetric(
+	q := uri.Query()
+
+	basicMetricsExporter := exporters.NewBasicMetric(
 		"select metric, value from system.metrics",
 		uri,
 		namespace,
 	)
-	q := uri.Query()
 
-	asyncMetricsURI := uri
-	q.Set("query", "select replaceRegexpAll(toString(metric), '-', '_') AS metric, value from system.asynchronous_metrics")
-	asyncMetricsURI.RawQuery = q.Encode()
+	asyncMetricsExporter := exporters.NewAsyncMetrics(
+		"select replaceRegexpAll(toString(metric), '-', '_') AS metric, value from system.asynchronous_metrics",
+		uri,
+		namespace,
+	)
 
 	eventsURI := uri
 	q.Set("query", "select event, value from system.events")
@@ -60,11 +63,11 @@ func NewExporter(uri url.URL, insecure bool, user, password string) *Exporter {
 	disksMetricURI.RawQuery = q.Encode()
 
 	return &Exporter{
-		basicMetrics:    basicMetrics,
-		asyncMetricsURI: asyncMetricsURI.String(),
-		eventsURI:       eventsURI.String(),
-		partsURI:        partsURI.String(),
-		disksMetricURI:  disksMetricURI.String(),
+		basicMetricsExporter: basicMetricsExporter,
+		asyncMetricsExporter: asyncMetricsExporter,
+		eventsURI:            eventsURI.String(),
+		partsURI:             partsURI.String(),
+		disksMetricURI:       disksMetricURI.String(),
 		scrapeFailures: prometheus.NewCounter(prometheus.CounterOpts{
 			Namespace: namespace,
 			Name:      "exporter_scrape_failures_total",
@@ -108,14 +111,14 @@ func (e *Exporter) Describe(ch chan<- *prometheus.Desc) {
 func (e *Exporter) collect(ch chan<- prometheus.Metric) error {
 
 	// PARSING RESPONSES
-	metrics, err := util.ParseKeyValueResponse(e.basicMetrics.QueryURI, e.clickConn)
+	metrics, err := util.ParseKeyValueResponse(e.basicMetricsExporter.QueryURI, e.clickConn)
 	if err != nil {
-		return fmt.Errorf("error scraping clickhouse url %v: %v", e.basicMetrics.QueryURI, err)
+		return fmt.Errorf("error scraping clickhouse url %v: %v", e.basicMetricsExporter.QueryURI, err)
 	}
 
-	asyncMetrics, err := util.ParseKeyValueResponse(e.asyncMetricsURI, e.clickConn)
+	asyncMetrics, err := util.ParseKeyValueResponse(e.asyncMetricsExporter.QueryURI, e.clickConn)
 	if err != nil {
-		return fmt.Errorf("error scraping clickhouse url %v: %v", e.asyncMetricsURI, err)
+		return fmt.Errorf("error scraping clickhouse url %v: %v", e.asyncMetricsExporter.QueryURI, err)
 	}
 
 	events, err := util.ParseKeyValueResponse(e.eventsURI, e.clickConn)
@@ -133,17 +136,8 @@ func (e *Exporter) collect(ch chan<- prometheus.Metric) error {
 		return fmt.Errorf("error scraping clickhouse url %v: %v", e.disksMetricURI, err)
 	}
 
-	e.basicMetrics.Collect(metrics, ch)
-
-	for _, am := range asyncMetrics {
-		newMetric := prometheus.NewGaugeVec(prometheus.GaugeOpts{
-			Namespace: namespace,
-			Name:      util.GetMetricName(am.Key),
-			Help:      "Number of " + am.Key + " async processed",
-		}, []string{}).WithLabelValues()
-		newMetric.Set(am.Value)
-		newMetric.Collect(ch)
-	}
+	e.basicMetricsExporter.Collect(metrics, ch)
+	e.asyncMetricsExporter.Collect(asyncMetrics, ch)
 
 	for _, ev := range events {
 		newMetric, _ := prometheus.NewConstMetric(
