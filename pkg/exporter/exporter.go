@@ -25,7 +25,7 @@ const (
 type Exporter struct {
 	basicMetricsExporter exporters.BasicMetricsExporter
 	asyncMetricsExporter exporters.AsyncMetricsExporter
-	eventsURI            string
+	eventMetricsExporter exporters.EventMetricsExporter
 	partsURI             string
 	disksMetricURI       string
 
@@ -50,9 +50,11 @@ func NewExporter(uri url.URL, insecure bool, user, password string) *Exporter {
 		namespace,
 	)
 
-	eventsURI := uri
-	q.Set("query", "select event, value from system.events")
-	eventsURI.RawQuery = q.Encode()
+	eventMetricsExporter := exporters.NewEventMetricsExporter(
+		"select event, value from system.events",
+		uri,
+		namespace,
+	)
 
 	partsURI := uri
 	q.Set("query", "select database, table, sum(bytes) as bytes, count() as parts, sum(rows) as rows from system.parts where active = 1 group by database, table")
@@ -65,7 +67,7 @@ func NewExporter(uri url.URL, insecure bool, user, password string) *Exporter {
 	return &Exporter{
 		basicMetricsExporter: basicMetricsExporter,
 		asyncMetricsExporter: asyncMetricsExporter,
-		eventsURI:            eventsURI.String(),
+		eventMetricsExporter: eventMetricsExporter,
 		partsURI:             partsURI.String(),
 		disksMetricURI:       disksMetricURI.String(),
 		scrapeFailures: prometheus.NewCounter(prometheus.CounterOpts{
@@ -121,9 +123,9 @@ func (e *Exporter) collect(ch chan<- prometheus.Metric) error {
 		return fmt.Errorf("error scraping clickhouse url %v: %v", e.asyncMetricsExporter.QueryURI, err)
 	}
 
-	events, err := util.ParseKeyValueResponse(e.eventsURI, e.clickConn)
+	events, err := util.ParseKeyValueResponse(e.eventMetricsExporter.QueryURI, e.clickConn)
 	if err != nil {
-		return fmt.Errorf("error scraping clickhouse url %v: %v", e.eventsURI, err)
+		return fmt.Errorf("error scraping clickhouse url %v: %v", e.eventMetricsExporter.QueryURI, err)
 	}
 
 	parts, err := e.parsePartsResponse(e.partsURI)
@@ -138,15 +140,7 @@ func (e *Exporter) collect(ch chan<- prometheus.Metric) error {
 
 	e.basicMetricsExporter.Collect(metrics, ch)
 	e.asyncMetricsExporter.Collect(asyncMetrics, ch)
-
-	for _, ev := range events {
-		newMetric, _ := prometheus.NewConstMetric(
-			prometheus.NewDesc(
-				namespace+"_"+util.GetMetricName(ev.Key)+"_total",
-				"Number of "+ev.Key+" total processed", []string{}, nil),
-			prometheus.CounterValue, float64(ev.Value))
-		ch <- newMetric
-	}
+	e.eventMetricsExporter.Collect(events, ch)
 
 	for _, part := range parts {
 		newBytesMetric := prometheus.NewGaugeVec(prometheus.GaugeOpts{
