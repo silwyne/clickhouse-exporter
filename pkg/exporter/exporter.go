@@ -8,7 +8,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-	"unicode"
 
 	"clickhouse-metric-exporter/pkg/exporter/util"
 
@@ -111,7 +110,7 @@ func (e *Exporter) collect(ch chan<- prometheus.Metric) error {
 	for _, m := range metrics {
 		newMetric := prometheus.NewGaugeVec(prometheus.GaugeOpts{
 			Namespace: namespace,
-			Name:      metricName(m.key),
+			Name:      util.GetMetricName(m.key),
 			Help:      "Number of " + m.key + " currently processed",
 		}, []string{}).WithLabelValues()
 		newMetric.Set(m.value)
@@ -126,7 +125,7 @@ func (e *Exporter) collect(ch chan<- prometheus.Metric) error {
 	for _, am := range asyncMetrics {
 		newMetric := prometheus.NewGaugeVec(prometheus.GaugeOpts{
 			Namespace: namespace,
-			Name:      metricName(am.key),
+			Name:      util.GetMetricName(am.key),
 			Help:      "Number of " + am.key + " async processed",
 		}, []string{}).WithLabelValues()
 		newMetric.Set(am.value)
@@ -141,7 +140,7 @@ func (e *Exporter) collect(ch chan<- prometheus.Metric) error {
 	for _, ev := range events {
 		newMetric, _ := prometheus.NewConstMetric(
 			prometheus.NewDesc(
-				namespace+"_"+metricName(ev.key)+"_total",
+				namespace+"_"+util.GetMetricName(ev.key)+"_total",
 				"Number of "+ev.key+" total processed", []string{}, nil),
 			prometheus.CounterValue, float64(ev.value))
 		ch <- newMetric
@@ -204,49 +203,6 @@ func (e *Exporter) collect(ch chan<- prometheus.Metric) error {
 	return nil
 }
 
-type lineResult struct {
-	key   string
-	value float64
-}
-
-func parseNumber(s string) (float64, error) {
-	v, err := strconv.ParseFloat(s, 64)
-	if err != nil {
-		return 0, err
-	}
-
-	return v, nil
-}
-
-func (e *Exporter) parseKeyValueResponse(uri string) ([]lineResult, error) {
-	data, err := e.clickConn.ExecuteURI(uri)
-	if err != nil {
-		return nil, err
-	}
-
-	// Parsing results
-	lines := strings.Split(string(data), "\n")
-	var results = make([]lineResult, 0)
-
-	for i, line := range lines {
-		parts := strings.Fields(line)
-		if len(parts) == 0 {
-			continue
-		}
-		if len(parts) != 2 {
-			return nil, fmt.Errorf("parseKeyValueResponse: unexpected %d line: %s", i, line)
-		}
-		k := strings.TrimSpace(parts[0])
-		v, err := parseNumber(strings.TrimSpace(parts[1]))
-		if err != nil {
-			return nil, err
-		}
-		results = append(results, lineResult{k, v})
-
-	}
-	return results, nil
-}
-
 type diskResult struct {
 	disk       string
 	freeSpace  float64
@@ -273,12 +229,12 @@ func (e *Exporter) parseDiskResponse(uri string) ([]diskResult, error) {
 		}
 		disk := strings.TrimSpace(parts[0])
 
-		freeSpace, err := parseNumber(strings.TrimSpace(parts[1]))
+		freeSpace, err := util.ParseNumber(strings.TrimSpace(parts[1]))
 		if err != nil {
 			return nil, err
 		}
 
-		totalSpace, err := parseNumber(strings.TrimSpace(parts[2]))
+		totalSpace, err := util.ParseNumber(strings.TrimSpace(parts[2]))
 		if err != nil {
 			return nil, err
 		}
@@ -341,6 +297,40 @@ func (e *Exporter) parsePartsResponse(uri string) ([]partsResult, error) {
 
 // Collect fetches the stats from configured clickhouse location and delivers them
 // as Prometheus metrics. It implements prometheus.Collector.
+type LineResult struct {
+	key   string
+	value float64
+}
+
+func (e *Exporter) parseKeyValueResponse(uri string) ([]LineResult, error) {
+	data, err := e.clickConn.ExecuteURI(uri)
+	if err != nil {
+		return nil, err
+	}
+
+	// Parsing results
+	lines := strings.Split(string(data), "\n")
+	var results = make([]LineResult, 0)
+
+	for i, line := range lines {
+		parts := strings.Fields(line)
+		if len(parts) == 0 {
+			continue
+		}
+		if len(parts) != 2 {
+			return nil, fmt.Errorf("parseKeyValueResponse: unexpected %d line: %s", i, line)
+		}
+		k := strings.TrimSpace(parts[0])
+		v, err := util.ParseNumber(strings.TrimSpace(parts[1]))
+		if err != nil {
+			return nil, err
+		}
+		results = append(results, LineResult{k, v})
+
+	}
+	return results, nil
+}
+
 func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 	upValue := 1
 
@@ -361,28 +351,6 @@ func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 		prometheus.GaugeValue, float64(upValue),
 	)
 
-}
-
-func metricName(in string) string {
-	out := toSnake(in)
-	return strings.Replace(out, ".", "_", -1)
-}
-
-// toSnake convert the given string to snake case following the Golang format:
-// acronyms are converted to lower-case and preceded by an underscore.
-func toSnake(in string) string {
-	runes := []rune(in)
-	length := len(runes)
-
-	var out []rune
-	for i := 0; i < length; i++ {
-		if i > 0 && unicode.IsUpper(runes[i]) && ((i+1 < length && unicode.IsLower(runes[i+1])) || unicode.IsLower(runes[i-1])) {
-			out = append(out, '_')
-		}
-		out = append(out, unicode.ToLower(runes[i]))
-	}
-
-	return string(out)
 }
 
 // check interface
