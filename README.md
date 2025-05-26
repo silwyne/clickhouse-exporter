@@ -21,6 +21,7 @@ Credentials(if not default):
 
 via environment variables
 ```
+CLICKHOUSE_URI
 CLICKHOUSE_USER
 CLICKHOUSE_PASSWORD
 ```
