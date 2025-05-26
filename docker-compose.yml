@@ -5,7 +5,4 @@ services:
     image: clickhouse-exporter:1
     ports:
       - 9116:9116
-    environment:
-      - CLICKHOUSE_USER=nilian
-      - CLICKHOUSE_PASSWORD=1234
-      - CLICKHOUSE_URI=http://172.29.112.37:8123
+      

@@ -1,8 +1,9 @@
 package exporters
 
 import (
-	"clickhouse-metric-exporter/pkg/util"
 	"net/url"
+
+	"github.com/ClickHouse/clickhouse_exporter/src/pkg/util"
 
 	"github.com/prometheus/client_golang/prometheus"
 )

@@ -6,7 +6,7 @@ import (
 	"net/url"
 	"os"
 
-	"clickhouse-metric-exporter/pkg/exporter"
+	"github.com/ClickHouse/clickhouse_exporter/src/pkg/exporter"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"

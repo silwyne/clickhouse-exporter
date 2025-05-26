@@ -1,0 +1,9 @@
+.github
+.gitignore
+.git
+
+
+deployment
+docker
+
+.travis.yaml
