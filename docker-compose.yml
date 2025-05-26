@@ -1,5 +1,12 @@
 services:
   clickhouse-exporter:
-    image: clickhouse-exporter:1
+    image: clickhouse-exporter:2
     ports:
       - "9116:9116"
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        BUILD_HTTP_PROXY: ${BUILD_HTTP_PROXY}
+        BUILD_HTTPS_PROXY: ${BUILD_HTTPS_PROXY}
+        PORT: ${PORT}
