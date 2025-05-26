@@ -8,7 +8,6 @@ import (
 )
 
 type BasicMetrics struct {
-	clickConn util.ClickhouseConn
 	namespace string
 	queryURI  string
 }
