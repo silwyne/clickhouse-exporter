@@ -2,3 +2,5 @@
 .build/
 clickhouse_exporter
 coverage.txt
+
+.env
