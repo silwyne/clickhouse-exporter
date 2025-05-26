@@ -6,15 +6,14 @@ import (
 	"unicode"
 )
 
+type LineResult struct {
+	Key   string
+	Value float64
+}
+
 func GetMetricName(Key string) string {
 	out := toSnake(Key)
 	return strings.Replace(out, ".", "_", -1)
-}
-
-type diskResult struct {
-	disk       string
-	freeSpace  float64
-	totalSpace float64
 }
 
 // toSnake convert the given string to snake case following the Golang format:

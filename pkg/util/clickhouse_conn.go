@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"strings"
 
 	"github.com/rs/zerolog/log"
 )
@@ -44,4 +43,3 @@ func (e *ClickhouseConn) ExecuteURI(uri string) ([]byte, error) {
 
 	return data, nil
 }
-

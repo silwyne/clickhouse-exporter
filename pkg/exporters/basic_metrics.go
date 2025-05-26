@@ -1,8 +1,7 @@
 package exporters
 
 import (
-	"clickhouse-metric-exporter/pkg/exporter/util"
-	"fmt"
+	"clickhouse-metric-exporter/pkg/util"
 	"net/url"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -28,19 +27,14 @@ func NewBasicMetric(query string, uri url.URL, namespace string) BasicMetrics {
 	}
 }
 
-func (e *BasicMetrics) Collect(ch chan<- prometheus.Metric) error {
-	metrics, err := e.clickConn.ParseKeyValueResponse(e.queryURI)
-	if err != nil {
-		return fmt.Errorf("error scraping clickhouse url %v: %v", e.queryURI, err)
-	}
-
-	for _, m := range metrics {
+func (e *BasicMetrics) Collect(resultLines []util.LineResult, ch chan<- prometheus.Metric) error {
+	for _, m := range resultLines {
 		newMetric := prometheus.NewGaugeVec(prometheus.GaugeOpts{
 			Namespace: e.namespace,
-			Name:      util.GetMetricName(m.key),
-			Help:      "Number of " + m.key + " currently processed",
+			Name:      util.GetMetricName(m.Key),
+			Help:      "Number of " + m.Key + " currently processed",
 		}, []string{}).WithLabelValues()
-		newMetric.Set(m.value)
+		newMetric.Set(m.Value)
 		newMetric.Collect(ch)
 	}
 

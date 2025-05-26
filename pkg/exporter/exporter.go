@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"clickhouse-metric-exporter/pkg/exporter/util"
+	"clickhouse-metric-exporter/pkg/util"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/rs/zerolog/log"
@@ -102,19 +102,11 @@ func (e *Exporter) Describe(ch chan<- *prometheus.Desc) {
 }
 
 func (e *Exporter) collect(ch chan<- prometheus.Metric) error {
+
+	// PARSING RESPONSES
 	metrics, err := e.parseKeyValueResponse(e.metricsURI)
 	if err != nil {
 		return fmt.Errorf("error scraping clickhouse url %v: %v", e.metricsURI, err)
-	}
-
-	for _, m := range metrics {
-		newMetric := prometheus.NewGaugeVec(prometheus.GaugeOpts{
-			Namespace: namespace,
-			Name:      util.GetMetricName(m.key),
-			Help:      "Number of " + m.key + " currently processed",
-		}, []string{}).WithLabelValues()
-		newMetric.Set(m.value)
-		newMetric.Collect(ch)
 	}
 
 	asyncMetrics, err := e.parseKeyValueResponse(e.asyncMetricsURI)
@@ -122,33 +114,48 @@ func (e *Exporter) collect(ch chan<- prometheus.Metric) error {
 		return fmt.Errorf("error scraping clickhouse url %v: %v", e.asyncMetricsURI, err)
 	}
 
-	for _, am := range asyncMetrics {
-		newMetric := prometheus.NewGaugeVec(prometheus.GaugeOpts{
-			Namespace: namespace,
-			Name:      util.GetMetricName(am.key),
-			Help:      "Number of " + am.key + " async processed",
-		}, []string{}).WithLabelValues()
-		newMetric.Set(am.value)
-		newMetric.Collect(ch)
-	}
-
 	events, err := e.parseKeyValueResponse(e.eventsURI)
 	if err != nil {
 		return fmt.Errorf("error scraping clickhouse url %v: %v", e.eventsURI, err)
 	}
 
-	for _, ev := range events {
-		newMetric, _ := prometheus.NewConstMetric(
-			prometheus.NewDesc(
-				namespace+"_"+util.GetMetricName(ev.key)+"_total",
-				"Number of "+ev.key+" total processed", []string{}, nil),
-			prometheus.CounterValue, float64(ev.value))
-		ch <- newMetric
-	}
-
 	parts, err := e.parsePartsResponse(e.partsURI)
 	if err != nil {
 		return fmt.Errorf("error scraping clickhouse url %v: %v", e.partsURI, err)
+	}
+
+	disksMetrics, err := e.parseDiskResponse(e.disksMetricURI)
+	if err != nil {
+		return fmt.Errorf("error scraping clickhouse url %v: %v", e.disksMetricURI, err)
+	}
+
+	for _, m := range metrics {
+		newMetric := prometheus.NewGaugeVec(prometheus.GaugeOpts{
+			Namespace: namespace,
+			Name:      util.GetMetricName(m.Key),
+			Help:      "Number of " + m.Key + " currently processed",
+		}, []string{}).WithLabelValues()
+		newMetric.Set(m.Value)
+		newMetric.Collect(ch)
+	}
+
+	for _, am := range asyncMetrics {
+		newMetric := prometheus.NewGaugeVec(prometheus.GaugeOpts{
+			Namespace: namespace,
+			Name:      util.GetMetricName(am.Key),
+			Help:      "Number of " + am.Key + " async processed",
+		}, []string{}).WithLabelValues()
+		newMetric.Set(am.Value)
+		newMetric.Collect(ch)
+	}
+
+	for _, ev := range events {
+		newMetric, _ := prometheus.NewConstMetric(
+			prometheus.NewDesc(
+				namespace+"_"+util.GetMetricName(ev.Key)+"_total",
+				"Number of "+ev.Key+" total processed", []string{}, nil),
+			prometheus.CounterValue, float64(ev.Value))
+		ch <- newMetric
 	}
 
 	for _, part := range parts {
@@ -175,11 +182,6 @@ func (e *Exporter) collect(ch chan<- prometheus.Metric) error {
 		}, []string{"database", "table"}).WithLabelValues(part.database, part.table)
 		newRowsMetric.Set(float64(part.rows))
 		newRowsMetric.Collect(ch)
-	}
-
-	disksMetrics, err := e.parseDiskResponse(e.disksMetricURI)
-	if err != nil {
-		return fmt.Errorf("error scraping clickhouse url %v: %v", e.disksMetricURI, err)
 	}
 
 	for _, dm := range disksMetrics {
@@ -297,12 +299,7 @@ func (e *Exporter) parsePartsResponse(uri string) ([]partsResult, error) {
 
 // Collect fetches the stats from configured clickhouse location and delivers them
 // as Prometheus metrics. It implements prometheus.Collector.
-type LineResult struct {
-	key   string
-	value float64
-}
-
-func (e *Exporter) parseKeyValueResponse(uri string) ([]LineResult, error) {
+func (e *Exporter) parseKeyValueResponse(uri string) ([]util.LineResult, error) {
 	data, err := e.clickConn.ExecuteURI(uri)
 	if err != nil {
 		return nil, err
@@ -310,7 +307,7 @@ func (e *Exporter) parseKeyValueResponse(uri string) ([]LineResult, error) {
 
 	// Parsing results
 	lines := strings.Split(string(data), "\n")
-	var results = make([]LineResult, 0)
+	var results = make([]util.LineResult, 0)
 
 	for i, line := range lines {
 		parts := strings.Fields(line)
@@ -325,7 +322,7 @@ func (e *Exporter) parseKeyValueResponse(uri string) ([]LineResult, error) {
 		if err != nil {
 			return nil, err
 		}
-		results = append(results, LineResult{k, v})
+		results = append(results, util.LineResult{k, v})
 
 	}
 	return results, nil
