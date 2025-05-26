@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"strings"
 	"time"
 
 	"clickhouse-metric-exporter/pkg/exporters"
@@ -26,7 +25,7 @@ type Exporter struct {
 	asyncMetricsExporter exporters.AsyncMetricsExporter
 	eventMetricsExporter exporters.EventMetricsExporter
 	partMetricsExporter  exporters.PartsMetricsExporter
-	disksMetricURI       string
+	diskMetricsExporter  exporters.DiskMetricsExporter
 
 	scrapeFailures prometheus.Counter
 	clickConn      util.ClickhouseConn
@@ -34,8 +33,6 @@ type Exporter struct {
 
 // NewExporter returns an initialized Exporter.
 func NewExporter(uri url.URL, insecure bool, user, password string) *Exporter {
-
-	q := uri.Query()
 
 	basicMetricsExporter := exporters.NewBasicMetricsExporter(
 		"select metric, value from system.metrics",
@@ -61,16 +58,18 @@ func NewExporter(uri url.URL, insecure bool, user, password string) *Exporter {
 		namespace,
 	)
 
-	disksMetricURI := uri
-	q.Set("query", `select name, sum(free_space) as free_space_in_bytes, sum(total_space) as total_space_in_bytes from system.disks group by name`)
-	disksMetricURI.RawQuery = q.Encode()
+	diskMetricsExporter := exporters.NewDiskMetricsExporter(
+		`select name, sum(free_space) as free_space_in_bytes, sum(total_space) as total_space_in_bytes from system.disks group by name`,
+		uri,
+		namespace,
+	)
 
 	return &Exporter{
 		basicMetricsExporter: basicMetricsExporter,
 		asyncMetricsExporter: asyncMetricsExporter,
 		eventMetricsExporter: eventMetricsExporter,
 		partMetricsExporter:  partMetricsExporter,
-		disksMetricURI:       disksMetricURI.String(),
+		diskMetricsExporter:  diskMetricsExporter,
 		scrapeFailures: prometheus.NewCounter(prometheus.CounterOpts{
 			Namespace: namespace,
 			Name:      "exporter_scrape_failures_total",
@@ -134,77 +133,19 @@ func (e *Exporter) collect(ch chan<- prometheus.Metric) error {
 		return fmt.Errorf("error scraping clickhouse url %v: %v", e.partMetricsExporter.QueryURI, err)
 	}
 
-	disksMetrics, err := e.parseDiskResponse(e.disksMetricURI)
+	disksMetrics, err := e.diskMetricsExporter.ParseDiskResponse(e.clickConn)
 	if err != nil {
-		return fmt.Errorf("error scraping clickhouse url %v: %v", e.disksMetricURI, err)
+		return fmt.Errorf("error scraping clickhouse url %v: %v", e.diskMetricsExporter.QueryURI, err)
 	}
 
+	// COLLECTING METRICS BY PROMETHEUS
 	e.basicMetricsExporter.Collect(metrics, ch)
 	e.asyncMetricsExporter.Collect(asyncMetrics, ch)
 	e.eventMetricsExporter.Collect(events, ch)
 	e.partMetricsExporter.Collect(parts, ch)
-
-	for _, dm := range disksMetrics {
-		newFreeSpaceMetric := prometheus.NewGaugeVec(prometheus.GaugeOpts{
-			Namespace: namespace,
-			Name:      "free_space_in_bytes",
-			Help:      "Disks free_space_in_bytes capacity",
-		}, []string{"disk"}).WithLabelValues(dm.disk)
-		newFreeSpaceMetric.Set(dm.freeSpace)
-		newFreeSpaceMetric.Collect(ch)
-
-		newTotalSpaceMetric := prometheus.NewGaugeVec(prometheus.GaugeOpts{
-			Namespace: namespace,
-			Name:      "total_space_in_bytes",
-			Help:      "Disks total_space_in_bytes capacity",
-		}, []string{"disk"}).WithLabelValues(dm.disk)
-		newTotalSpaceMetric.Set(dm.totalSpace)
-		newTotalSpaceMetric.Collect(ch)
-	}
+	e.diskMetricsExporter.Collect(disksMetrics, ch)
 
 	return nil
-}
-
-type diskResult struct {
-	disk       string
-	freeSpace  float64
-	totalSpace float64
-}
-
-func (e *Exporter) parseDiskResponse(uri string) ([]diskResult, error) {
-	data, err := e.clickConn.ExecuteURI(uri)
-	if err != nil {
-		return nil, err
-	}
-
-	// Parsing results
-	lines := strings.Split(string(data), "\n")
-	var results = make([]diskResult, 0)
-
-	for i, line := range lines {
-		parts := strings.Fields(line)
-		if len(parts) == 0 {
-			continue
-		}
-		if len(parts) != 3 {
-			return nil, fmt.Errorf("parseDiskResponse: unexpected %d line: %s", i, line)
-		}
-		disk := strings.TrimSpace(parts[0])
-
-		freeSpace, err := util.ParseNumber(strings.TrimSpace(parts[1]))
-		if err != nil {
-			return nil, err
-		}
-
-		totalSpace, err := util.ParseNumber(strings.TrimSpace(parts[2]))
-		if err != nil {
-			return nil, err
-		}
-
-		results = append(results, diskResult{disk, freeSpace, totalSpace})
-
-	}
-	return results, nil
 }
 
 // Collect fetches the stats from configured clickhouse location and delivers them
