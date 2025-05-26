@@ -7,17 +7,21 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
+const (
+	ASYNC_METRIC_EXPORTER_QUERY = "select replaceRegexpAll(toString(metric), '-', '_') AS metric, value from system.asynchronous_metrics"
+)
+
 type AsyncMetricsExporter struct {
 	Namespace string
 	QueryURI  string
 }
 
-func NewAsyncMetricsExporter(query string, uri url.URL, namespace string) AsyncMetricsExporter {
+func NewAsyncMetricsExporter(uri url.URL, namespace string) AsyncMetricsExporter {
 
 	url_values := uri.Query()
 
 	metricsURI := uri
-	url_values.Set("query", query)
+	url_values.Set("query", ASYNC_METRIC_EXPORTER_QUERY)
 	metricsURI.RawQuery = url_values.Encode()
 
 	return AsyncMetricsExporter{

@@ -35,31 +35,26 @@ type Exporter struct {
 func NewExporter(uri url.URL, insecure bool, user, password string) *Exporter {
 
 	basicMetricsExporter := exporters.NewBasicMetricsExporter(
-		"select metric, value from system.metrics",
 		uri,
 		namespace,
 	)
 
 	asyncMetricsExporter := exporters.NewAsyncMetricsExporter(
-		"select replaceRegexpAll(toString(metric), '-', '_') AS metric, value from system.asynchronous_metrics",
 		uri,
 		namespace,
 	)
 
 	eventMetricsExporter := exporters.NewEventMetricsExporter(
-		"select event, value from system.events",
 		uri,
 		namespace,
 	)
 
 	partMetricsExporter := exporters.NewPartsMetricsExporter(
-		"select database, table, sum(bytes) as bytes, count() as parts, sum(rows) as rows from system.parts where active = 1 group by database, table",
 		uri,
 		namespace,
 	)
 
 	diskMetricsExporter := exporters.NewDiskMetricsExporter(
-		`select name, sum(free_space) as free_space_in_bytes, sum(total_space) as total_space_in_bytes from system.disks group by name`,
 		uri,
 		namespace,
 	)

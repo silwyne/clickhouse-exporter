@@ -10,17 +10,21 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
+const (
+	PARTS_METRIC_EXPORTER_QUERY = "select database, table, sum(bytes) as bytes, count() as parts, sum(rows) as rows from system.parts where active = 1 group by database, table"
+)
+
 type PartsMetricsExporter struct {
 	Namespace string
 	QueryURI  string
 }
 
-func NewPartsMetricsExporter(query string, uri url.URL, namespace string) PartsMetricsExporter {
+func NewPartsMetricsExporter(uri url.URL, namespace string) PartsMetricsExporter {
 
 	url_values := uri.Query()
 
 	metricsURI := uri
-	url_values.Set("query", query)
+	url_values.Set("query", PARTS_METRIC_EXPORTER_QUERY)
 	metricsURI.RawQuery = url_values.Encode()
 
 	return PartsMetricsExporter{

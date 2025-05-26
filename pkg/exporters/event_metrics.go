@@ -7,17 +7,21 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
+const (
+	EVENT_METRIC_EXPORTER_QUERY = "select event, value from system.events"
+)
+
 type EventMetricsExporter struct {
 	Namespace string
 	QueryURI  string
 }
 
-func NewEventMetricsExporter(query string, uri url.URL, namespace string) EventMetricsExporter {
+func NewEventMetricsExporter(uri url.URL, namespace string) EventMetricsExporter {
 
 	url_values := uri.Query()
 
 	metricsURI := uri
-	url_values.Set("query", query)
+	url_values.Set("query", EVENT_METRIC_EXPORTER_QUERY)
 	metricsURI.RawQuery = url_values.Encode()
 
 	return EventMetricsExporter{

@@ -9,17 +9,21 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
+const (
+	DISK_METRIC_EXPORTER_QUERY = "select name, sum(free_space) as free_space_in_bytes, sum(total_space) as total_space_in_bytes from system.disks group by name"
+)
+
 type DiskMetricsExporter struct {
 	Namespace string
 	QueryURI  string
 }
 
-func NewDiskMetricsExporter(query string, uri url.URL, namespace string) DiskMetricsExporter {
+func NewDiskMetricsExporter(uri url.URL, namespace string) DiskMetricsExporter {
 
 	url_values := uri.Query()
 
 	metricsURI := uri
-	url_values.Set("query", query)
+	url_values.Set("query", DISK_METRIC_EXPORTER_QUERY)
 	metricsURI.RawQuery = url_values.Encode()
 
 	return DiskMetricsExporter{
