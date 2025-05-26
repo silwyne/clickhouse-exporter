@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"strconv"
 	"strings"
 	"time"
 
@@ -26,7 +25,7 @@ type Exporter struct {
 	basicMetricsExporter exporters.BasicMetricsExporter
 	asyncMetricsExporter exporters.AsyncMetricsExporter
 	eventMetricsExporter exporters.EventMetricsExporter
-	partsURI             string
+	partMetricsExporter  exporters.PartsMetricsExporter
 	disksMetricURI       string
 
 	scrapeFailures prometheus.Counter
@@ -56,9 +55,11 @@ func NewExporter(uri url.URL, insecure bool, user, password string) *Exporter {
 		namespace,
 	)
 
-	partsURI := uri
-	q.Set("query", "select database, table, sum(bytes) as bytes, count() as parts, sum(rows) as rows from system.parts where active = 1 group by database, table")
-	partsURI.RawQuery = q.Encode()
+	partMetricsExporter := exporters.NewPartsMetricsExporter(
+		"select database, table, sum(bytes) as bytes, count() as parts, sum(rows) as rows from system.parts where active = 1 group by database, table",
+		uri,
+		namespace,
+	)
 
 	disksMetricURI := uri
 	q.Set("query", `select name, sum(free_space) as free_space_in_bytes, sum(total_space) as total_space_in_bytes from system.disks group by name`)
@@ -68,7 +69,7 @@ func NewExporter(uri url.URL, insecure bool, user, password string) *Exporter {
 		basicMetricsExporter: basicMetricsExporter,
 		asyncMetricsExporter: asyncMetricsExporter,
 		eventMetricsExporter: eventMetricsExporter,
-		partsURI:             partsURI.String(),
+		partMetricsExporter:  partMetricsExporter,
 		disksMetricURI:       disksMetricURI.String(),
 		scrapeFailures: prometheus.NewCounter(prometheus.CounterOpts{
 			Namespace: namespace,
@@ -128,9 +129,9 @@ func (e *Exporter) collect(ch chan<- prometheus.Metric) error {
 		return fmt.Errorf("error scraping clickhouse url %v: %v", e.eventMetricsExporter.QueryURI, err)
 	}
 
-	parts, err := e.parsePartsResponse(e.partsURI)
+	parts, err := e.partMetricsExporter.ParsePartsResponse(e.clickConn)
 	if err != nil {
-		return fmt.Errorf("error scraping clickhouse url %v: %v", e.partsURI, err)
+		return fmt.Errorf("error scraping clickhouse url %v: %v", e.partMetricsExporter.QueryURI, err)
 	}
 
 	disksMetrics, err := e.parseDiskResponse(e.disksMetricURI)
@@ -141,32 +142,7 @@ func (e *Exporter) collect(ch chan<- prometheus.Metric) error {
 	e.basicMetricsExporter.Collect(metrics, ch)
 	e.asyncMetricsExporter.Collect(asyncMetrics, ch)
 	e.eventMetricsExporter.Collect(events, ch)
-
-	for _, part := range parts {
-		newBytesMetric := prometheus.NewGaugeVec(prometheus.GaugeOpts{
-			Namespace: namespace,
-			Name:      "table_parts_bytes",
-			Help:      "Table size in bytes",
-		}, []string{"database", "table"}).WithLabelValues(part.database, part.table)
-		newBytesMetric.Set(float64(part.bytes))
-		newBytesMetric.Collect(ch)
-
-		newCountMetric := prometheus.NewGaugeVec(prometheus.GaugeOpts{
-			Namespace: namespace,
-			Name:      "table_parts_count",
-			Help:      "Number of parts of the table",
-		}, []string{"database", "table"}).WithLabelValues(part.database, part.table)
-		newCountMetric.Set(float64(part.parts))
-		newCountMetric.Collect(ch)
-
-		newRowsMetric := prometheus.NewGaugeVec(prometheus.GaugeOpts{
-			Namespace: namespace,
-			Name:      "table_parts_rows",
-			Help:      "Number of rows in the table",
-		}, []string{"database", "table"}).WithLabelValues(part.database, part.table)
-		newRowsMetric.Set(float64(part.rows))
-		newRowsMetric.Collect(ch)
-	}
+	e.partMetricsExporter.Collect(parts, ch)
 
 	for _, dm := range disksMetrics {
 		newFreeSpaceMetric := prometheus.NewGaugeVec(prometheus.GaugeOpts{
@@ -228,56 +204,6 @@ func (e *Exporter) parseDiskResponse(uri string) ([]diskResult, error) {
 		results = append(results, diskResult{disk, freeSpace, totalSpace})
 
 	}
-	return results, nil
-}
-
-type partsResult struct {
-	database string
-	table    string
-	bytes    int
-	parts    int
-	rows     int
-}
-
-func (e *Exporter) parsePartsResponse(uri string) ([]partsResult, error) {
-	data, err := e.clickConn.ExecuteURI(uri)
-	if err != nil {
-		return nil, err
-	}
-
-	// Parsing results
-	lines := strings.Split(string(data), "\n")
-	var results = make([]partsResult, 0)
-
-	for i, line := range lines {
-		parts := strings.Fields(line)
-		if len(parts) == 0 {
-			continue
-		}
-		if len(parts) != 5 {
-			return nil, fmt.Errorf("parsePartsResponse: unexpected %d line: %s", i, line)
-		}
-		database := strings.TrimSpace(parts[0])
-		table := strings.TrimSpace(parts[1])
-
-		bytes, err := strconv.Atoi(strings.TrimSpace(parts[2]))
-		if err != nil {
-			return nil, err
-		}
-
-		count, err := strconv.Atoi(strings.TrimSpace(parts[3]))
-		if err != nil {
-			return nil, err
-		}
-
-		rows, err := strconv.Atoi(strings.TrimSpace(parts[4]))
-		if err != nil {
-			return nil, err
-		}
-
-		results = append(results, partsResult{database, table, bytes, count, rows})
-	}
-
 	return results, nil
 }
 
