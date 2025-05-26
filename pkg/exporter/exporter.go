@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"clickhouse-metric-exporter/pkg/exporters"
 	"clickhouse-metric-exporter/pkg/util"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -22,7 +23,7 @@ const (
 // Exporter collects clickhouse stats from the given URI and exports them using
 // the prometheus metrics package.
 type Exporter struct {
-	metricsURI      string
+	basicMetrics    exporters.BasicMetrics
 	asyncMetricsURI string
 	eventsURI       string
 	partsURI        string
@@ -32,17 +33,15 @@ type Exporter struct {
 	clickConn      util.ClickhouseConn
 }
 
-type LineResult struct {
-	key   string
-	value float64
-}
-
 // NewExporter returns an initialized Exporter.
 func NewExporter(uri url.URL, insecure bool, user, password string) *Exporter {
+
+	basicMetrics := exporters.NewBasicMetric(
+		"select metric, value from system.metrics",
+		uri,
+		namespace,
+	)
 	q := uri.Query()
-	metricsURI := uri
-	q.Set("query", "select metric, value from system.metrics")
-	metricsURI.RawQuery = q.Encode()
 
 	asyncMetricsURI := uri
 	q.Set("query", "select replaceRegexpAll(toString(metric), '-', '_') AS metric, value from system.asynchronous_metrics")
@@ -61,7 +60,7 @@ func NewExporter(uri url.URL, insecure bool, user, password string) *Exporter {
 	disksMetricURI.RawQuery = q.Encode()
 
 	return &Exporter{
-		metricsURI:      metricsURI.String(),
+		basicMetrics:    basicMetrics,
 		asyncMetricsURI: asyncMetricsURI.String(),
 		eventsURI:       eventsURI.String(),
 		partsURI:        partsURI.String(),
@@ -109,17 +108,17 @@ func (e *Exporter) Describe(ch chan<- *prometheus.Desc) {
 func (e *Exporter) collect(ch chan<- prometheus.Metric) error {
 
 	// PARSING RESPONSES
-	metrics, err := e.parseKeyValueResponse(e.metricsURI)
+	metrics, err := util.ParseKeyValueResponse(e.basicMetrics.QueryURI, e.clickConn)
 	if err != nil {
-		return fmt.Errorf("error scraping clickhouse url %v: %v", e.metricsURI, err)
+		return fmt.Errorf("error scraping clickhouse url %v: %v", e.basicMetrics.QueryURI, err)
 	}
 
-	asyncMetrics, err := e.parseKeyValueResponse(e.asyncMetricsURI)
+	asyncMetrics, err := util.ParseKeyValueResponse(e.asyncMetricsURI, e.clickConn)
 	if err != nil {
 		return fmt.Errorf("error scraping clickhouse url %v: %v", e.asyncMetricsURI, err)
 	}
 
-	events, err := e.parseKeyValueResponse(e.eventsURI)
+	events, err := util.ParseKeyValueResponse(e.eventsURI, e.clickConn)
 	if err != nil {
 		return fmt.Errorf("error scraping clickhouse url %v: %v", e.eventsURI, err)
 	}
@@ -134,15 +133,7 @@ func (e *Exporter) collect(ch chan<- prometheus.Metric) error {
 		return fmt.Errorf("error scraping clickhouse url %v: %v", e.disksMetricURI, err)
 	}
 
-	for _, m := range metrics {
-		newMetric := prometheus.NewGaugeVec(prometheus.GaugeOpts{
-			Namespace: namespace,
-			Name:      util.GetMetricName(m.Key),
-			Help:      "Number of " + m.Key + " currently processed",
-		}, []string{}).WithLabelValues()
-		newMetric.Set(m.Value)
-		newMetric.Collect(ch)
-	}
+	e.basicMetrics.Collect(metrics, ch)
 
 	for _, am := range asyncMetrics {
 		newMetric := prometheus.NewGaugeVec(prometheus.GaugeOpts{
@@ -304,35 +295,6 @@ func (e *Exporter) parsePartsResponse(uri string) ([]partsResult, error) {
 
 // Collect fetches the stats from configured clickhouse location and delivers them
 // as Prometheus metrics. It implements prometheus.Collector.
-func (e *Exporter) parseKeyValueResponse(uri string) ([]util.LineResult, error) {
-	data, err := e.clickConn.ExecuteURI(uri)
-	if err != nil {
-		return nil, err
-	}
-
-	// Parsing results
-	lines := strings.Split(string(data), "\n")
-	var results = make([]util.LineResult, 0)
-
-	for i, line := range lines {
-		parts := strings.Fields(line)
-		if len(parts) == 0 {
-			continue
-		}
-		if len(parts) != 2 {
-			return nil, fmt.Errorf("parseKeyValueResponse: unexpected %d line: %s", i, line)
-		}
-		k := strings.TrimSpace(parts[0])
-		v, err := util.ParseNumber(strings.TrimSpace(parts[1]))
-		if err != nil {
-			return nil, err
-		}
-		results = append(results, util.LineResult{k, v})
-
-	}
-	return results, nil
-}
-
 func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 	upValue := 1
 

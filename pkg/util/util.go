@@ -1,6 +1,7 @@
 package util
 
 import (
+	"fmt"
 	"strconv"
 	"strings"
 	"unicode"
@@ -14,6 +15,44 @@ type LineResult struct {
 func GetMetricName(Key string) string {
 	out := toSnake(Key)
 	return strings.Replace(out, ".", "_", -1)
+}
+
+func ParseNumber(s string) (float64, error) {
+	v, err := strconv.ParseFloat(s, 64)
+	if err != nil {
+		return 0, err
+	}
+
+	return v, nil
+}
+
+func ParseKeyValueResponse(uri string, clickConn ClickhouseConn) ([]LineResult, error) {
+	data, err := clickConn.ExecuteURI(uri)
+	if err != nil {
+		return nil, err
+	}
+
+	// Parsing results
+	lines := strings.Split(string(data), "\n")
+	var results = make([]LineResult, 0)
+
+	for i, line := range lines {
+		parts := strings.Fields(line)
+		if len(parts) == 0 {
+			continue
+		}
+		if len(parts) != 2 {
+			return nil, fmt.Errorf("parseKeyValueResponse: unexpected %d line: %s", i, line)
+		}
+		k := strings.TrimSpace(parts[0])
+		v, err := ParseNumber(strings.TrimSpace(parts[1]))
+		if err != nil {
+			return nil, err
+		}
+		results = append(results, LineResult{k, v})
+
+	}
+	return results, nil
 }
 
 // toSnake convert the given string to snake case following the Golang format:
@@ -31,13 +70,4 @@ func toSnake(in string) string {
 	}
 
 	return string(out)
-}
-
-func ParseNumber(s string) (float64, error) {
-	v, err := strconv.ParseFloat(s, 64)
-	if err != nil {
-		return 0, err
-	}
-
-	return v, nil
 }
