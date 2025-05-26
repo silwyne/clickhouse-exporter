@@ -4,6 +4,8 @@ import (
 	"net/url"
 	"testing"
 
+	"github.com/ClickHouse/clickhouse_exporter/src/pkg/util"
+
 	"github.com/prometheus/client_golang/prometheus"
 )
 
@@ -53,7 +55,7 @@ func TestParseNumber(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		out, err := parseNumber(tc.in)
+		out, err := util.ParseNumber(tc.in)
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
