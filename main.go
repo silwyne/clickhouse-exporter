@@ -7,7 +7,6 @@ import (
 	"os"
 
 	"github.com/ClickHouse/clickhouse_exporter/src/pkg/exporter"
-
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/rs/zerolog/log"
