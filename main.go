@@ -4,7 +4,6 @@ import (
 	"flag"
 	"net/http"
 	"net/url"
-	"os"
 
 	"github.com/ClickHouse/clickhouse_exporter/src/pkg/exporter"
 
@@ -14,13 +13,16 @@ import (
 )
 
 var (
-	listeningAddress    = flag.String("telemetry.address", ":9116", "Address on which to expose metrics.")
-	metricsEndpoint     = flag.String("telemetry.endpoint", "/metrics", "Path under which to expose metrics.")
-	clickhouseOnly      = flag.Bool("clickhouse_only", false, "Expose only Clickhouse metrics, not metrics from the exporter itself")
-	insecure            = flag.Bool("insecure", true, "Ignore server certificate if using https")
-	clickhouseScrapeURI = os.Getenv("CLICKHOUSE_URI")
-	user                = os.Getenv("CLICKHOUSE_USER")
-	password            = os.Getenv("CLICKHOUSE_PASSWORD")
+	listeningAddress = flag.String("telemetry.address", ":9116", "Address on which to expose metrics.")
+	metricsEndpoint  = flag.String("telemetry.endpoint", "/metrics", "Path under which to expose metrics.")
+	clickhouseOnly   = flag.Bool("clickhouse_only", false, "Expose only Clickhouse metrics, not metrics from the exporter itself")
+	insecure         = flag.Bool("insecure", true, "Ignore server certificate if using https")
+	// clickhouseScrapeURI = os.Getenv("CLICKHOUSE_URI")
+	// user                = os.Getenv("CLICKHOUSE_USER")
+	// password            = os.Getenv("CLICKHOUSE_PASSWORD")
+	clickhouseScrapeURI = "http://172.29.112.37:8123"
+	user                = "nilian"
+	password            = "1234"
 )
 
 func main() {
