@@ -28,7 +28,9 @@ const (
 	sum(result_rows) as result_rows,
 	sum(peak_threads_usage) as peak_threads_usage
 	FROM system.query_log
-	WHERE NOT has(databases, 'system')
+	WHERE 
+		NOT has(databases, 'system')
+		AND NOT table like '%%temporary%%'
 	GROUP BY user, table, type,query_kind`
 )
 
