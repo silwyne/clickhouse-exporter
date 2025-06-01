@@ -1,58 +1,48 @@
 package main
 
 import (
-	"flag"
 	"net/http"
 	"net/url"
-	"os"
 
 	"github.com/ClickHouse/clickhouse_exporter/internals/exporter"
+	"github.com/ClickHouse/clickhouse_exporter/pkg/configs"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/rs/zerolog/log"
 )
 
-var (
-	listeningAddress    = flag.String("telemetry.address", ":9116", "Address on which to expose metrics.")
-	metricsEndpoint     = flag.String("telemetry.endpoint", "/metrics", "Path under which to expose metrics.")
-	clickhouseOnly      = flag.Bool("clickhouse_only", false, "Expose only Clickhouse metrics, not metrics from the exporter itself")
-	insecure            = flag.Bool("insecure", true, "Ignore server certificate if using https")
-	clickhouseScrapeURI = os.Getenv("CLICKHOUSE_URI")
-	user                = os.Getenv("CLICKHOUSE_USER")
-	password            = os.Getenv("CLICKHOUSE_PASSWORD")
-)
-
 func main() {
-	flag.Parse()
 
-	uri, err := url.Parse(clickhouseScrapeURI)
+	configurations := configs.LoadConfigs()
+
+	uri, err := url.Parse(configurations.ClickhouseScrapeURI)
 	if err != nil {
 		log.Fatal().Err(err).Send()
 	}
-	log.Printf("Scraping %s", clickhouseScrapeURI)
+	log.Printf("Scraping %s", configurations.ClickhouseScrapeURI)
 
 	registerer := prometheus.DefaultRegisterer
 	gatherer := prometheus.DefaultGatherer
-	if *clickhouseOnly {
+	if *configurations.ClickhouseOnly {
 		reg := prometheus.NewRegistry()
 		registerer = reg
 		gatherer = reg
 	}
 
-	e := exporter.NewExporter(*uri, *insecure, user, password)
+	e := exporter.NewExporter(*uri, *configurations.Insecure, configurations.User, configurations.Password)
 	registerer.MustRegister(e)
 
-	http.Handle(*metricsEndpoint, promhttp.HandlerFor(gatherer, promhttp.HandlerOpts{}))
+	http.Handle(*configurations.MetricsEndpoint, promhttp.HandlerFor(gatherer, promhttp.HandlerOpts{}))
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte(`<html>
 			<head><title>Clickhouse Exporter</title></head>
 			<body>
 			<h1>Clickhouse Exporter</h1>
-			<p><a href="` + *metricsEndpoint + `">Metrics</a></p>
+			<p><a href="` + *configurations.MetricsEndpoint + `">Metrics</a></p>
 			</body>
 			</html>`))
 	})
 
-	log.Fatal().Err(http.ListenAndServe(*listeningAddress, nil)).Send()
+	log.Fatal().Err(http.ListenAndServe(*configurations.ListeningAddress, nil)).Send()
 }
