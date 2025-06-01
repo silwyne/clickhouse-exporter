@@ -40,3 +40,20 @@ docker run -d -p 9116:9116 clickhouse-exporter
 ```
 ## Sample dashboard
 Grafana dashboard could be a start for inspiration https://grafana.com/grafana/dashboards/882-clickhouse
+
+## Using with Prometheus
+just add it like this to your prometheus.yaml
+```yaml
+global:
+  scrape_interval:     1s
+  evaluation_interval: 1s
+
+scrape_configs:
+  - job_name: prometheus
+    static_configs:
+      - targets: ['127.0.0.1:9090']
+
+  - job_name: clickhouse-exporter
+    static_configs:
+      - targets: ['127.0.0.1:9116']
+```

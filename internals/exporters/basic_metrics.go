@@ -3,35 +3,35 @@ package exporters
 import (
 	"net/url"
 
-	"github.com/ClickHouse/clickhouse_exporter/src/pkg/util"
+	"github.com/ClickHouse/clickhouse_exporter/internals/util"
 
 	"github.com/prometheus/client_golang/prometheus"
 )
 
 const (
-	ASYNC_METRIC_EXPORTER_QUERY = "select replaceRegexpAll(toString(metric), '-', '_') AS metric, value from system.asynchronous_metrics"
+	BASIC_METRIC_EXPORTER_QUERY = "select metric, value from system.metrics"
 )
 
-type AsyncMetricsExporter struct {
+type BasicMetricsExporter struct {
 	Namespace string
 	QueryURI  string
 }
 
-func NewAsyncMetricsExporter(uri url.URL, namespace string) AsyncMetricsExporter {
+func NewBasicMetricsExporter(uri url.URL, namespace string) BasicMetricsExporter {
 
 	url_values := uri.Query()
 
 	metricsURI := uri
-	url_values.Set("query", ASYNC_METRIC_EXPORTER_QUERY)
+	url_values.Set("query", BASIC_METRIC_EXPORTER_QUERY)
 	metricsURI.RawQuery = url_values.Encode()
 
-	return AsyncMetricsExporter{
+	return BasicMetricsExporter{
 		QueryURI:  metricsURI.String(),
 		Namespace: namespace,
 	}
 }
 
-func (e *AsyncMetricsExporter) Collect(resultLines []util.LineResult, ch chan<- prometheus.Metric) {
+func (e *BasicMetricsExporter) Collect(resultLines []util.LineResult, ch chan<- prometheus.Metric) {
 	for _, am := range resultLines {
 		newMetric := prometheus.NewGaugeVec(prometheus.GaugeOpts{
 			Namespace: e.Namespace,

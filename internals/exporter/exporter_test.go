@@ -4,7 +4,7 @@ import (
 	"net/url"
 	"testing"
 
-	"github.com/ClickHouse/clickhouse_exporter/src/pkg/util"
+	"github.com/ClickHouse/clickhouse_exporter/internals/util"
 
 	"github.com/prometheus/client_golang/prometheus"
 )
