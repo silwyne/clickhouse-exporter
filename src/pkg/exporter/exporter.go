@@ -26,6 +26,7 @@ type Exporter struct {
 	eventMetricsExporter exporters.EventMetricsExporter
 	partMetricsExporter  exporters.PartsMetricsExporter
 	diskMetricsExporter  exporters.DiskMetricsExporter
+	queryMetricsExporter exporters.QueryMetricsExporter
 
 	scrapeFailures prometheus.Counter
 	clickConn      util.ClickhouseConn
@@ -59,12 +60,18 @@ func NewExporter(uri url.URL, insecure bool, user, password string) *Exporter {
 		namespace,
 	)
 
+	queryMetricsExporter := exporters.NewQueryMetricsExporter(
+		uri,
+		namespace,
+	)
+
 	return &Exporter{
 		basicMetricsExporter: basicMetricsExporter,
 		asyncMetricsExporter: asyncMetricsExporter,
 		eventMetricsExporter: eventMetricsExporter,
 		partMetricsExporter:  partMetricsExporter,
 		diskMetricsExporter:  diskMetricsExporter,
+		queryMetricsExporter: queryMetricsExporter,
 		scrapeFailures: prometheus.NewCounter(prometheus.CounterOpts{
 			Namespace: namespace,
 			Name:      "exporter_scrape_failures_total",
@@ -133,12 +140,18 @@ func (e *Exporter) collect(ch chan<- prometheus.Metric) error {
 		return fmt.Errorf("error scraping clickhouse url %v: %v", e.diskMetricsExporter.QueryURI, err)
 	}
 
+	query_metrics, err := e.queryMetricsExporter.ParseQueryResponse(e.clickConn)
+	if err != nil {
+		return fmt.Errorf("error scraping clickhouse url %v: %v", e.diskMetricsExporter.QueryURI, err)
+	}
+
 	// COLLECTING METRICS BY PROMETHEUS
 	e.basicMetricsExporter.Collect(metrics, ch)
 	e.asyncMetricsExporter.Collect(asyncMetrics, ch)
 	e.eventMetricsExporter.Collect(events, ch)
 	e.partMetricsExporter.Collect(parts, ch)
 	e.diskMetricsExporter.Collect(disksMetrics, ch)
+	e.queryMetricsExporter.Collect(query_metrics, ch)
 
 	return nil
 }
