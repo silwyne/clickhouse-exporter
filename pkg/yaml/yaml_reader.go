@@ -41,3 +41,7 @@ func (m *YamlConfig) Contains(key string) (bool, error) {
 	_, exists := m.data[key]
 	return exists, nil
 }
+
+func (m *YamlConfig) GetData() map[string]interface{} {
+	return m.data
+}
