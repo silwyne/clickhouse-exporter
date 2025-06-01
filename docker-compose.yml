@@ -1,6 +1,6 @@
 services:
   clickhouse-exporter:
-    image: clickhouse-exporter:2
+    image: clickhouse-exporter:4
     ports:
       - "9116:9116"
     build:
