@@ -2,7 +2,6 @@ package main
 
 import (
 	"net/http"
-	"net/url"
 
 	"github.com/ClickHouse/clickhouse_exporter/internals/exporter"
 	"github.com/ClickHouse/clickhouse_exporter/pkg/configs"
@@ -16,12 +15,6 @@ func main() {
 
 	configurations := configs.LoadConfigs()
 
-	uri, err := url.Parse(configurations.ClickhouseScrapeURI)
-	if err != nil {
-		log.Fatal().Err(err).Send()
-	}
-	log.Printf("Scraping %s", configurations.ClickhouseScrapeURI)
-
 	registerer := prometheus.DefaultRegisterer
 	gatherer := prometheus.DefaultGatherer
 	if *configurations.ClickhouseOnly {
@@ -30,7 +23,7 @@ func main() {
 		gatherer = reg
 	}
 
-	e := exporter.NewExporter(*uri, *configurations.Insecure, configurations.User, configurations.Password)
+	e := exporter.NewExporter(configurations)
 	registerer.MustRegister(e)
 
 	http.Handle(*configurations.MetricsEndpoint, promhttp.HandlerFor(gatherer, promhttp.HandlerOpts{}))

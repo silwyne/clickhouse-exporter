@@ -10,13 +10,14 @@ import (
 	"github.com/ClickHouse/clickhouse_exporter/internals/exporters"
 	"github.com/ClickHouse/clickhouse_exporter/internals/util"
 	"github.com/ClickHouse/clickhouse_exporter/pkg/clickhouse"
+	"github.com/ClickHouse/clickhouse_exporter/pkg/configs"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/rs/zerolog/log"
 )
 
 const (
-	namespace = "clickhouse" // For Prometheus metrics.
+	NAMESPACE = "clickhouse" // For Prometheus metrics.
 )
 
 // Exporter collects clickhouse stats from the given URI and exports them using
@@ -34,36 +35,42 @@ type Exporter struct {
 }
 
 // NewExporter returns an initialized Exporter.
-func NewExporter(uri url.URL, insecure bool, user, password string) *Exporter {
+func NewExporter(configs configs.Configuration) *Exporter {
+
+	uri, err := url.Parse(configs.ClickhouseScrapeURI)
+	if err != nil {
+		log.Fatal().Err(err).Send()
+	}
+	log.Printf("Scraping %s", configs.ClickhouseScrapeURI)
 
 	basicMetricsExporter := exporters.NewBasicMetricsExporter(
-		uri,
-		namespace,
+		*uri,
+		NAMESPACE,
 	)
 
 	asyncMetricsExporter := exporters.NewAsyncMetricsExporter(
-		uri,
-		namespace,
+		*uri,
+		NAMESPACE,
 	)
 
 	eventMetricsExporter := exporters.NewEventMetricsExporter(
-		uri,
-		namespace,
+		*uri,
+		NAMESPACE,
 	)
 
 	partMetricsExporter := exporters.NewPartsMetricsExporter(
-		uri,
-		namespace,
+		*uri,
+		NAMESPACE,
 	)
 
 	diskMetricsExporter := exporters.NewDiskMetricsExporter(
-		uri,
-		namespace,
+		*uri,
+		NAMESPACE,
 	)
 
 	queryMetricsExporter := exporters.NewQueryMetricsExporter(
-		uri,
-		namespace,
+		*uri,
+		NAMESPACE,
 	)
 
 	return &Exporter{
@@ -74,19 +81,19 @@ func NewExporter(uri url.URL, insecure bool, user, password string) *Exporter {
 		diskMetricsExporter:  diskMetricsExporter,
 		queryMetricsExporter: queryMetricsExporter,
 		scrapeFailures: prometheus.NewCounter(prometheus.CounterOpts{
-			Namespace: namespace,
+			Namespace: NAMESPACE,
 			Name:      "exporter_scrape_failures_total",
 			Help:      "Number of errors while scraping clickhouse.",
 		}),
 		clickConn: clickhouse.ClickhouseConn{
 			Client: &http.Client{
 				Transport: &http.Transport{
-					TLSClientConfig: &tls.Config{InsecureSkipVerify: insecure},
+					TLSClientConfig: &tls.Config{InsecureSkipVerify: *configs.Insecure},
 				},
 				Timeout: 30 * time.Second,
 			},
-			User:     user,
-			Password: password,
+			User:     configs.User,
+			Password: configs.Password,
 		},
 	}
 }
@@ -172,7 +179,7 @@ func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 
 	ch <- prometheus.MustNewConstMetric(
 		prometheus.NewDesc(
-			prometheus.BuildFQName(namespace, "", "up"),
+			prometheus.BuildFQName(NAMESPACE, "", "up"),
 			"Was the last query of ClickHouse successful.",
 			nil, nil,
 		),

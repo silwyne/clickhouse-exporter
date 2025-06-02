@@ -26,8 +26,8 @@ func LoadConfigs() Configuration {
 		Insecure:         flag.Bool("insecure", true, "Ignore server certificate if using https"),
 
 		ClickhouseScrapeURI: getEnv("CLICKHOUSE_URI", "http://127.0.0.1:8123"),
-		User:                getEnv("CLICKHOUSE_USER", "username"),
-		Password:            getEnv("CLICKHOUSE_PASSWORD", "password"),
+		User:                getEnv("CLICKHOUSE_USER", "user"),
+		Password:            getEnv("CLICKHOUSE_PASSWORD", "pass"),
 
 		QueryFiltersPath: getEnv("QUERY_FILTERS_PATH", "./conf/query-filters.yaml"),
 	}
