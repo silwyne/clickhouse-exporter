@@ -29,6 +29,10 @@ func makeFilterCaluse(yamlObject yaml.YamlConfig) string {
 		{
 			return makeFilterFromString(val)
 		}
+	case nil:
+		{
+			return ""
+		}
 	default:
 		panic("error: this is not the proper format for setting filters. use list or single string")
 	}

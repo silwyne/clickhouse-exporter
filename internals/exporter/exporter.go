@@ -11,6 +11,7 @@ import (
 	"github.com/ClickHouse/clickhouse_exporter/internals/util"
 	"github.com/ClickHouse/clickhouse_exporter/pkg/clickhouse"
 	"github.com/ClickHouse/clickhouse_exporter/pkg/configs"
+	"github.com/ClickHouse/clickhouse_exporter/pkg/yaml"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/rs/zerolog/log"
@@ -43,34 +44,42 @@ func NewExporter(configs configs.Configuration) *Exporter {
 	}
 	log.Printf("Scraping %s", configs.ClickhouseScrapeURI)
 
+	queryFilters := yaml.ReadYaml(configs.QueryFiltersPath)
+
 	basicMetricsExporter := exporters.NewBasicMetricsExporter(
 		*uri,
 		NAMESPACE,
+		queryFilters.GetMapObject("basic_exporter"),
 	)
 
 	asyncMetricsExporter := exporters.NewAsyncMetricsExporter(
 		*uri,
 		NAMESPACE,
+		queryFilters.GetMapObject("async_exporter"),
 	)
 
 	eventMetricsExporter := exporters.NewEventMetricsExporter(
 		*uri,
 		NAMESPACE,
+		queryFilters.GetMapObject("event_exporter"),
 	)
 
 	partMetricsExporter := exporters.NewPartsMetricsExporter(
 		*uri,
 		NAMESPACE,
+		queryFilters.GetMapObject("parts_exporter"),
 	)
 
 	diskMetricsExporter := exporters.NewDiskMetricsExporter(
 		*uri,
 		NAMESPACE,
+		queryFilters.GetMapObject("disk_exporter"),
 	)
 
 	queryMetricsExporter := exporters.NewQueryMetricsExporter(
 		*uri,
 		NAMESPACE,
+		queryFilters.GetMapObject("query_exporter"),
 	)
 
 	return &Exporter{
@@ -170,7 +179,7 @@ func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 	upValue := 1
 
 	if err := e.collect(ch); err != nil {
-		log.Info().Msgf("Error scraping clickhouse: %s", err)
+		log.Error().Msgf("Error scraping clickhouse: %s", err)
 		e.scrapeFailures.Inc()
 		e.scrapeFailures.Collect(ch)
 

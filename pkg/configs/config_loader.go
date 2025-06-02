@@ -25,11 +25,11 @@ func LoadConfigs() Configuration {
 		ClickhouseOnly:   flag.Bool("clickhouse_only", false, "Expose only Clickhouse metrics, not metrics from the exporter itself"),
 		Insecure:         flag.Bool("insecure", true, "Ignore server certificate if using https"),
 
-		ClickhouseScrapeURI: getEnv("CLICKHOUSE_URI", "http://127.0.0.1:8123"),
-		User:                getEnv("CLICKHOUSE_USER", "user"),
-		Password:            getEnv("CLICKHOUSE_PASSWORD", "pass"),
+		ClickhouseScrapeURI: getEnv("CLICKHOUSE_URI", "http://127.0.0.1:823"),
+		User:                getEnv("CLICKHOUSE_USER", "nilian"),
+		Password:            getEnv("CLICKHOUSE_PASSWORD", "1234"),
 
-		QueryFiltersPath: getEnv("QUERY_FILTERS_PATH", "./conf/query-filters.yaml"),
+		QueryFiltersPath: getEnv("QUERY_FILTERS_PATH", "/opt/clickhouse_exporter/conf"),
 	}
 
 	// must be called after all flags are defined and before flags are accessed by the program

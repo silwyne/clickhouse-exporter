@@ -7,29 +7,29 @@ import (
 	"strings"
 
 	"github.com/ClickHouse/clickhouse_exporter/pkg/clickhouse"
+	"github.com/ClickHouse/clickhouse_exporter/pkg/queryparser"
+	"github.com/ClickHouse/clickhouse_exporter/pkg/yaml"
+
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/rs/zerolog/log"
 )
 
 const (
-	QUERY_METRIC_EXPORTER_QUERY = `SELECT 
-	user, 
-	type as status,
-	query_kind,
-	arrayJoin(tables) AS table, 
-	sum(memory_usage) as memory_usage,
-	count(*) AS query_num,
-	sum(query_duration_ms) as query_duration_ms,
-	sum(read_bytes) as read_bytes,
-	sum(read_rows) as read_rows,
-	sum(written_bytes) as written_bytes,
-	sum(written_rows) as written_rows,
-	sum(result_bytes) as result_bytes,
-	sum(result_rows) as result_rows,
-	sum(peak_threads_usage) as peak_threads_usage
-	FROM system.query_log
-	WHERE 
-		NOT has(databases, 'system')
-		AND NOT table like '%%temporary%%'
+	QUERY_METRIC_EXPORTER_QUERY = `
+	SELECT 
+		user, type as status, query_kind, arrayJoin(tables) AS table,
+		sum(memory_usage) as memory_usage,
+		count(*) AS query_num,
+		sum(query_duration_ms) as query_duration_ms,
+		sum(read_bytes) as read_bytes,
+		sum(read_rows) as read_rows,
+		sum(written_bytes) as written_bytes,
+		sum(written_rows) as written_rows,
+		sum(result_bytes) as result_bytes,
+		sum(result_rows) as result_rows,
+		sum(peak_threads_usage) as peak_threads_usage
+	FROM system.query_log 
+	{FILTER_CLAUSE}
 	GROUP BY user, table, type,query_kind`
 )
 
@@ -38,12 +38,15 @@ type QueryMetricsExporter struct {
 	QueryURI  string
 }
 
-func NewQueryMetricsExporter(uri url.URL, namespace string) QueryMetricsExporter {
+func NewQueryMetricsExporter(uri url.URL, namespace string, yamlconfig yaml.YamlConfig) QueryMetricsExporter {
+
+	filter_calause := queryparser.ParseYamlConfigToQueryFilter(yamlconfig)
+	query := strings.Replace(QUERY_METRIC_EXPORTER_QUERY, "{FILTER_CLAUSE}", filter_calause, 1)
+	log.Printf("query exporter query: %v", query)
 
 	url_values := uri.Query()
-
 	metricsURI := uri
-	url_values.Set("query", QUERY_METRIC_EXPORTER_QUERY)
+	url_values.Set("query", query)
 	metricsURI.RawQuery = url_values.Encode()
 
 	return QueryMetricsExporter{
