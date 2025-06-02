@@ -21,13 +21,20 @@ func LoadConfigs() Configuration {
 		MetricsEndpoint:     flag.String("telemetry.endpoint", "/metrics", "Path under which to expose metrics."),
 		ClickhouseOnly:      flag.Bool("clickhouse_only", false, "Expose only Clickhouse metrics, not metrics from the exporter itself"),
 		Insecure:            flag.Bool("insecure", true, "Ignore server certificate if using https"),
-		ClickhouseScrapeURI: os.Getenv("CLICKHOUSE_URI"),
-		User:                os.Getenv("CLICKHOUSE_USER"),
-		Password:            os.Getenv("CLICKHOUSE_PASSWORD"),
+		ClickhouseScrapeURI: getEnv("CLICKHOUSE_URI", "http://127.0.0.1:8123"),
+		User:                getEnv("CLICKHOUSE_USER", "username"),
+		Password:            getEnv("CLICKHOUSE_PASSWORD", "password"),
 	}
 
 	// must be called after all flags are defined and before flags are accessed by the program
 	flag.Parse()
 
 	return configs
+}
+
+func getEnv(key string, defaultValue string) string {
+	if value, exists := os.LookupEnv(key); exists {
+		return value
+	}
+	return defaultValue
 }
