@@ -6,8 +6,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/ClickHouse/clickhouse_exporter/internals/util"
-
+	"github.com/ClickHouse/clickhouse_exporter/pkg/clickhouse"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
@@ -42,8 +41,8 @@ type PartsResult struct {
 	rows     int
 }
 
-func (e *PartsMetricsExporter) ParsePartsResponse(clickConn util.ClickhouseConn) ([]PartsResult, error) {
-	data, err := clickConn.ExecuteURI(e.QueryURI)
+func (e *PartsMetricsExporter) ParsePartsResponse(clickConn clickhouse.ClickhouseConn) ([]PartsResult, error) {
+	data, err := clickConn.ExcecuteQuery(e.QueryURI)
 	if err != nil {
 		return nil, err
 	}

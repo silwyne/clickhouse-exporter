@@ -9,6 +9,7 @@ import (
 
 	"github.com/ClickHouse/clickhouse_exporter/internals/exporters"
 	"github.com/ClickHouse/clickhouse_exporter/internals/util"
+	"github.com/ClickHouse/clickhouse_exporter/pkg/clickhouse"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/rs/zerolog/log"
@@ -29,7 +30,7 @@ type Exporter struct {
 	queryMetricsExporter exporters.QueryMetricsExporter
 
 	scrapeFailures prometheus.Counter
-	clickConn      util.ClickhouseConn
+	clickConn      clickhouse.ClickhouseConn
 }
 
 // NewExporter returns an initialized Exporter.
@@ -77,7 +78,7 @@ func NewExporter(uri url.URL, insecure bool, user, password string) *Exporter {
 			Name:      "exporter_scrape_failures_total",
 			Help:      "Number of errors while scraping clickhouse.",
 		}),
-		clickConn: util.ClickhouseConn{
+		clickConn: clickhouse.ClickhouseConn{
 			Client: &http.Client{
 				Transport: &http.Transport{
 					TLSClientConfig: &tls.Config{InsecureSkipVerify: insecure},

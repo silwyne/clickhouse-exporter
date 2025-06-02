@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/ClickHouse/clickhouse_exporter/internals/util"
+	"github.com/ClickHouse/clickhouse_exporter/pkg/clickhouse"
 
 	"github.com/prometheus/client_golang/prometheus"
 )
@@ -39,8 +40,8 @@ type diskResult struct {
 	totalSpace float64
 }
 
-func (e *DiskMetricsExporter) ParseDiskResponse(clickConn util.ClickhouseConn) ([]diskResult, error) {
-	data, err := clickConn.ExecuteURI(e.QueryURI)
+func (e *DiskMetricsExporter) ParseDiskResponse(clickConn clickhouse.ClickhouseConn) ([]diskResult, error) {
+	data, err := clickConn.ExcecuteQuery(e.QueryURI)
 	if err != nil {
 		return nil, err
 	}
