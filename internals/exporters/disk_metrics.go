@@ -6,12 +6,17 @@ import (
 	"strings"
 
 	"github.com/ClickHouse/clickhouse_exporter/internals/util"
+	"github.com/ClickHouse/clickhouse_exporter/pkg/clickhouse"
+	"github.com/ClickHouse/clickhouse_exporter/pkg/queryparser"
+	"github.com/ClickHouse/clickhouse_exporter/pkg/yaml"
 
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/rs/zerolog/log"
 )
 
 const (
-	DISK_METRIC_EXPORTER_QUERY = "select name, sum(free_space) as free_space_in_bytes, sum(total_space) as total_space_in_bytes from system.disks group by name"
+	DISK_METRIC_EXPORTER_QUERY = `
+	select name, sum(free_space) as free_space_in_bytes, sum(total_space) as total_space_in_bytes from system.disks {FILTER_CLAUSE} group by name`
 )
 
 type DiskMetricsExporter struct {
@@ -19,12 +24,15 @@ type DiskMetricsExporter struct {
 	QueryURI  string
 }
 
-func NewDiskMetricsExporter(uri url.URL, namespace string) DiskMetricsExporter {
+func NewDiskMetricsExporter(uri url.URL, namespace string, yamlconfig yaml.YamlConfig) DiskMetricsExporter {
+
+	filter_calause := queryparser.ParseYamlConfigToQueryFilter(yamlconfig)
+	query := strings.Replace(DISK_METRIC_EXPORTER_QUERY, "{FILTER_CLAUSE}", filter_calause, 1)
+	log.Printf("disk exporter query: %v", query)
 
 	url_values := uri.Query()
-
 	metricsURI := uri
-	url_values.Set("query", DISK_METRIC_EXPORTER_QUERY)
+	url_values.Set("query", query)
 	metricsURI.RawQuery = url_values.Encode()
 
 	return DiskMetricsExporter{
@@ -39,8 +47,8 @@ type diskResult struct {
 	totalSpace float64
 }
 
-func (e *DiskMetricsExporter) ParseDiskResponse(clickConn util.ClickhouseConn) ([]diskResult, error) {
-	data, err := clickConn.ExecuteURI(e.QueryURI)
+func (e *DiskMetricsExporter) ParseDiskResponse(clickConn clickhouse.ClickhouseConn) ([]diskResult, error) {
+	data, err := clickConn.ExcecuteQuery(e.QueryURI)
 	if err != nil {
 		return nil, err
 	}
