@@ -24,7 +24,7 @@ func ReadYaml(filePath string) YamlConfig {
 	return YamlConfig{data: raw}
 }
 
-func (m *YamlConfig) GetValues(keys ...string) YamlConfig {
+func (m *YamlConfig) GetMapObject(keys ...string) YamlConfig {
 	var current interface{} = m.data
 	for _, key := range keys {
 		if asMap, ok := current.(map[string]interface{}); ok {
@@ -37,9 +37,21 @@ func (m *YamlConfig) GetValues(keys ...string) YamlConfig {
 	return YamlConfig{data: parsed_value}
 }
 
-func (m *YamlConfig) Contains(key string) (bool, error) {
+func (m *YamlConfig) GetValue(keys ...string) interface{} {
+	var current interface{} = m.data
+	for _, key := range keys {
+		if asMap, ok := current.(map[string]interface{}); ok {
+			current = asMap[key]
+		} else {
+			return YamlConfig{nil}
+		}
+	}
+	return current
+}
+
+func (m *YamlConfig) Contains(key string) bool {
 	_, exists := m.data[key]
-	return exists, nil
+	return exists
 }
 
 func (m *YamlConfig) GetData() map[string]interface{} {
