@@ -29,7 +29,7 @@ func LoadConfigs() Configuration {
 		User:                getEnv("CLICKHOUSE_USER", "nilian"),
 		Password:            getEnv("CLICKHOUSE_PASSWORD", "1234"),
 
-		QueryFiltersPath: getEnv("QUERY_FILTERS_PATH", "/opt/clickhouse_exporter/conf"),
+		QueryFiltersPath: getEnv("QUERY_FILTERS_PATH", "./conf/query-filter.yaml"),
 	}
 
 	// must be called after all flags are defined and before flags are accessed by the program
