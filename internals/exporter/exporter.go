@@ -155,17 +155,17 @@ func (e *Exporter) collect(ch chan<- prometheus.Metric) error {
 		return fmt.Errorf("error scraping clickhouse url %v: %v", e.eventMetricsExporter.QueryURI, err)
 	}
 
-	parts, err := e.partMetricsExporter.ParsePartsResponse(e.clickConn)
+	parts, err := e.partMetricsExporter.ParseResponse(e.clickConn)
 	if err != nil {
 		return fmt.Errorf("error scraping clickhouse url %v: %v", e.partMetricsExporter.QueryURI, err)
 	}
 
-	disksMetrics, err := e.diskMetricsExporter.ParseDiskResponse(e.clickConn)
+	disksMetrics, err := e.diskMetricsExporter.ParseResponse(e.clickConn)
 	if err != nil {
 		return fmt.Errorf("error scraping clickhouse url %v: %v", e.diskMetricsExporter.QueryURI, err)
 	}
 
-	query_metrics, err := e.queryMetricsExporter.ParseQueryResponse(e.clickConn)
+	query_metrics, err := e.queryMetricsExporter.ParseResponse(e.clickConn)
 	if err != nil {
 		return fmt.Errorf("error scraping clickhouse url %v: %v", e.queryMetricsExporter.QueryURI, err)
 	}

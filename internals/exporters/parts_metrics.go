@@ -48,7 +48,7 @@ type PartsResult struct {
 	rows     int
 }
 
-func (e *PartsMetricsExporter) ParsePartsResponse(clickConn clickhouse.ClickhouseConn) ([]PartsResult, error) {
+func (e *PartsMetricsExporter) ParseResponse(clickConn clickhouse.ClickhouseConn) ([]PartsResult, error) {
 	data, err := clickConn.ExcecuteQuery(e.QueryURI)
 	if err != nil {
 		return nil, err

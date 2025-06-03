@@ -47,7 +47,7 @@ type diskResult struct {
 	totalSpace float64
 }
 
-func (e *DiskMetricsExporter) ParseDiskResponse(clickConn clickhouse.ClickhouseConn) ([]diskResult, error) {
+func (e *DiskMetricsExporter) ParseResponse(clickConn clickhouse.ClickhouseConn) ([]diskResult, error) {
 	data, err := clickConn.ExcecuteQuery(e.QueryURI)
 	if err != nil {
 		return nil, err

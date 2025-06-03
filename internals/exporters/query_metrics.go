@@ -72,7 +72,7 @@ type QueryMetricsResult struct {
 	peak_threads_usage int
 }
 
-func (e *QueryMetricsExporter) ParseQueryResponse(clickConn clickhouse.ClickhouseConn) ([]QueryMetricsResult, error) {
+func (e *QueryMetricsExporter) ParseResponse(clickConn clickhouse.ClickhouseConn) ([]QueryMetricsResult, error) {
 	data, err := clickConn.ExcecuteQuery(e.QueryURI)
 	if err != nil {
 		return nil, err
