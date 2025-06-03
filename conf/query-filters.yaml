@@ -28,5 +28,5 @@ parts_exporter:
 table_exporter:
   filters:
     - "NOT database like 'system'"
-    - "NOT database ilike 'information_schema"
+    - "NOT database ilike 'information_schema'"
   

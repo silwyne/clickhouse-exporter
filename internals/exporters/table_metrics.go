@@ -15,7 +15,7 @@ import (
 )
 
 const (
-	TABLE_METRIC_EXPORTER_QUERY = `select database, name as table, engine, total_rows, total_bytes, parts from tables {FILTER_CLAUSE}`
+	TABLE_METRIC_EXPORTER_QUERY = `select database, name as table, engine, total_rows, total_bytes, parts from system.tables {FILTER_CLAUSE}`
 )
 
 type TableMetricsExporter struct {
@@ -71,17 +71,17 @@ func (e *TableMetricsExporter) ParseResponse(clickConn clickhouse.ClickhouseConn
 		table := strings.TrimSpace(fields[1])
 		engine := strings.TrimSpace(fields[2])
 
-		total_rows, err := strconv.Atoi(strings.TrimSpace(fields[4]))
+		total_rows, err := strconv.Atoi(strings.TrimSpace(fields[3]))
 		if err != nil {
 			return nil, err
 		}
 
-		total_bytes, err := strconv.Atoi(strings.TrimSpace(fields[5]))
+		total_bytes, err := strconv.Atoi(strings.TrimSpace(fields[4]))
 		if err != nil {
 			return nil, err
 		}
 
-		parts, err := strconv.Atoi(strings.TrimSpace(fields[6]))
+		parts, err := strconv.Atoi(strings.TrimSpace(fields[5]))
 		if err != nil {
 			return nil, err
 		}
