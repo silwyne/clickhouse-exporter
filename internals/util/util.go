@@ -5,6 +5,8 @@ import (
 	"strconv"
 	"strings"
 	"unicode"
+
+	"github.com/ClickHouse/clickhouse_exporter/pkg/clickhouse"
 )
 
 type LineResult struct {
@@ -26,8 +28,8 @@ func ParseNumber(s string) (float64, error) {
 	return v, nil
 }
 
-func ParseKeyValueResponse(uri string, clickConn ClickhouseConn) ([]LineResult, error) {
-	data, err := clickConn.ExecuteURI(uri)
+func ParseKeyValueResponse(uri string, clickConn clickhouse.ClickhouseConn) ([]LineResult, error) {
+	data, err := clickConn.ExcecuteQuery(uri)
 	if err != nil {
 		return nil, err
 	}

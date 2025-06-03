@@ -1,6 +1,6 @@
 services:
   clickhouse-exporter:
-    image: clickhouse-exporter:2
+    image: clickhouse-exporter:5
     ports:
       - "9116:9116"
     build:
@@ -10,3 +10,5 @@ services:
         BUILD_HTTP_PROXY: ${BUILD_HTTP_PROXY}
         BUILD_HTTPS_PROXY: ${BUILD_HTTPS_PROXY}
         PORT: ${PORT}
+    env_file:
+      - .env

@@ -6,13 +6,16 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/ClickHouse/clickhouse_exporter/src/pkg/util"
+	"github.com/ClickHouse/clickhouse_exporter/pkg/clickhouse"
+	"github.com/ClickHouse/clickhouse_exporter/pkg/queryparser"
+	"github.com/ClickHouse/clickhouse_exporter/pkg/yaml"
 
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/rs/zerolog/log"
 )
 
 const (
-	PARTS_METRIC_EXPORTER_QUERY = "select database, table, sum(bytes) as bytes, count() as parts, sum(rows) as rows from system.parts where active = 1 group by database, table"
+	PARTS_METRIC_EXPORTER_QUERY = `select database, table, sum(bytes) as bytes, count() as parts, sum(rows) as rows from system.parts {FILTER_CLAUSE} group by database, table`
 )
 
 type PartsMetricsExporter struct {
@@ -20,12 +23,15 @@ type PartsMetricsExporter struct {
 	QueryURI  string
 }
 
-func NewPartsMetricsExporter(uri url.URL, namespace string) PartsMetricsExporter {
+func NewPartsMetricsExporter(uri url.URL, namespace string, yamlconfig yaml.YamlConfig) PartsMetricsExporter {
+
+	filter_calause := queryparser.ParseYamlConfigToQueryFilter(yamlconfig)
+	query := strings.Replace(PARTS_METRIC_EXPORTER_QUERY, "{FILTER_CLAUSE}", filter_calause, 1)
+	log.Printf("parts exporter query: %v", query)
 
 	url_values := uri.Query()
-
 	metricsURI := uri
-	url_values.Set("query", PARTS_METRIC_EXPORTER_QUERY)
+	url_values.Set("query", query)
 	metricsURI.RawQuery = url_values.Encode()
 
 	return PartsMetricsExporter{
@@ -42,8 +48,8 @@ type PartsResult struct {
 	rows     int
 }
 
-func (e *PartsMetricsExporter) ParsePartsResponse(clickConn util.ClickhouseConn) ([]PartsResult, error) {
-	data, err := clickConn.ExecuteURI(e.QueryURI)
+func (e *PartsMetricsExporter) ParsePartsResponse(clickConn clickhouse.ClickhouseConn) ([]PartsResult, error) {
+	data, err := clickConn.ExcecuteQuery(e.QueryURI)
 	if err != nil {
 		return nil, err
 	}

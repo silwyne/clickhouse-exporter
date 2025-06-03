@@ -1,4 +1,4 @@
-package util
+package clickhouse
 
 import (
 	"fmt"
@@ -14,8 +14,8 @@ type ClickhouseConn struct {
 	Password string
 }
 
-func (e *ClickhouseConn) ExecuteURI(uri string) ([]byte, error) {
-	req, err := http.NewRequest("GET", uri, nil)
+func (e *ClickhouseConn) ExcecuteQuery(query string) ([]byte, error) {
+	req, err := http.NewRequest("GET", query, nil)
 	if err != nil {
 		return nil, err
 	}

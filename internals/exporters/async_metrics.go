@@ -2,14 +2,19 @@ package exporters
 
 import (
 	"net/url"
+	"strings"
 
-	"github.com/ClickHouse/clickhouse_exporter/src/pkg/util"
+	"github.com/ClickHouse/clickhouse_exporter/internals/util"
+	"github.com/ClickHouse/clickhouse_exporter/pkg/queryparser"
+	"github.com/ClickHouse/clickhouse_exporter/pkg/yaml"
 
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/rs/zerolog/log"
 )
 
 const (
-	ASYNC_METRIC_EXPORTER_QUERY = "select replaceRegexpAll(toString(metric), '-', '_') AS metric, value from system.asynchronous_metrics"
+	ASYNC_METRIC_EXPORTER_QUERY = `
+	select replaceRegexpAll(toString(metric), '-', '_') AS metric, value from system.asynchronous_metrics {FILTER_CLAUSE}`
 )
 
 type AsyncMetricsExporter struct {
@@ -17,12 +22,15 @@ type AsyncMetricsExporter struct {
 	QueryURI  string
 }
 
-func NewAsyncMetricsExporter(uri url.URL, namespace string) AsyncMetricsExporter {
+func NewAsyncMetricsExporter(uri url.URL, namespace string, yamlconfig yaml.YamlConfig) AsyncMetricsExporter {
+
+	filter_calause := queryparser.ParseYamlConfigToQueryFilter(yamlconfig)
+	query := strings.Replace(ASYNC_METRIC_EXPORTER_QUERY, "{FILTER_CLAUSE}", filter_calause, 1)
+	log.Printf("async exporter query: %v", query)
 
 	url_values := uri.Query()
-
 	metricsURI := uri
-	url_values.Set("query", ASYNC_METRIC_EXPORTER_QUERY)
+	url_values.Set("query", query)
 	metricsURI.RawQuery = url_values.Encode()
 
 	return AsyncMetricsExporter{
