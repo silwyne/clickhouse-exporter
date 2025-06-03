@@ -25,9 +25,9 @@ func LoadConfigs() Configuration {
 		ClickhouseOnly:   flag.Bool("clickhouse_only", false, "Expose only Clickhouse metrics, not metrics from the exporter itself"),
 		Insecure:         flag.Bool("insecure", true, "Ignore server certificate if using https"),
 
-		ClickhouseScrapeURI: getEnv("CLICKHOUSE_URI", "http://127.0.0.1:823"),
-		User:                getEnv("CLICKHOUSE_USER", "nilian"),
-		Password:            getEnv("CLICKHOUSE_PASSWORD", "1234"),
+		ClickhouseScrapeURI: getEnv("CLICKHOUSE_URI", "http://127.0.0.1:8123"),
+		User:                getEnv("CLICKHOUSE_USER", "user"),
+		Password:            getEnv("CLICKHOUSE_PASSWORD", "pass"),
 
 		QueryFiltersPath: getEnv("QUERY_FILTERS_PATH", "./conf/query-filter.yaml"),
 	}
