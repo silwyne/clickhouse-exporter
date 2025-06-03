@@ -7,8 +7,6 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 <!-- insertion marker -->
 ## [0.1.1](https://github.com/ClickHouse/clickhouse_exporter/releases/tag/0.1.1) - 2025-06-03
 
-<small>[Compare with 0.1.0]()</small>
-
 ### Fixed
 
 - style: renamed Exporter to ExporterHolder([f1f7f44](https://ganj-ipe.yaftar.ir/zafir/data_analytics/clickhouse-exporter/commit/f1f7f4425b809c3dc72cc4b8b8161db827ea310c) by smh_tabatabaei).
@@ -18,8 +16,6 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 <!-- insertion marker -->
 ## [0.1.0](https://github.com/ClickHouse/clickhouse_exporter/releases/tag/0.1.0) - 2025-06-03
-
-<small>[Compare with first commit](https://github.com/ClickHouse/clickhouse_exporter/compare/3331edb06a30e035617b198db1dffd1145fc56d9...0.1.0)</small>
 
 ### Added
 
