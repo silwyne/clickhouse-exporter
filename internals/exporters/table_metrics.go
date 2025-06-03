@@ -40,6 +40,16 @@ func NewTableMetricsExporter(uri url.URL, namespace string, yamlconfig yaml.Yaml
 	}
 }
 
+func (e *TableMetricsExporter) Scrap(clickConn clickhouse.ClickhouseConn, ch chan<- prometheus.Metric) error {
+	table_metrics, err := e.parseResponse(clickConn)
+	if err != nil {
+		return fmt.Errorf("error scraping clickhouse url %v: %v", e.QueryURI, err)
+	}
+	e.collect(table_metrics, ch)
+
+	return nil
+}
+
 type TableMetricsResult struct {
 	database    string
 	table       string
@@ -49,7 +59,7 @@ type TableMetricsResult struct {
 	parts       int
 }
 
-func (e *TableMetricsExporter) ParseResponse(clickConn clickhouse.ClickhouseConn) ([]TableMetricsResult, error) {
+func (e *TableMetricsExporter) parseResponse(clickConn clickhouse.ClickhouseConn) ([]TableMetricsResult, error) {
 	data, err := clickConn.ExcecuteQuery(e.QueryURI)
 	if err != nil {
 		return nil, err
@@ -100,7 +110,7 @@ func (e *TableMetricsExporter) ParseResponse(clickConn clickhouse.ClickhouseConn
 
 }
 
-func (e *TableMetricsExporter) Collect(resultLines []TableMetricsResult, ch chan<- prometheus.Metric) {
+func (e *TableMetricsExporter) collect(resultLines []TableMetricsResult, ch chan<- prometheus.Metric) {
 
 	for _, query_metrics := range resultLines {
 

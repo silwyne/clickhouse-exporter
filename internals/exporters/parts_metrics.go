@@ -40,6 +40,15 @@ func NewPartsMetricsExporter(uri url.URL, namespace string, yamlconfig yaml.Yaml
 	}
 }
 
+func (e *PartsMetricsExporter) Scrap(clickConn clickhouse.ClickhouseConn, ch chan<- prometheus.Metric) error {
+	parts, err := e.parseResponse(clickConn)
+	if err != nil {
+		return fmt.Errorf("error scraping clickhouse url %v: %v", e.QueryURI, err)
+	}
+	e.collect(parts, ch)
+	return nil
+}
+
 type PartsResult struct {
 	database string
 	table    string
@@ -48,7 +57,7 @@ type PartsResult struct {
 	rows     int
 }
 
-func (e *PartsMetricsExporter) ParseResponse(clickConn clickhouse.ClickhouseConn) ([]PartsResult, error) {
+func (e *PartsMetricsExporter) parseResponse(clickConn clickhouse.ClickhouseConn) ([]PartsResult, error) {
 	data, err := clickConn.ExcecuteQuery(e.QueryURI)
 	if err != nil {
 		return nil, err
@@ -90,7 +99,7 @@ func (e *PartsMetricsExporter) ParseResponse(clickConn clickhouse.ClickhouseConn
 	return results, nil
 }
 
-func (e *PartsMetricsExporter) Collect(resultLines []PartsResult, ch chan<- prometheus.Metric) {
+func (e *PartsMetricsExporter) collect(resultLines []PartsResult, ch chan<- prometheus.Metric) {
 	for _, part := range resultLines {
 		newBytesMetric := prometheus.NewGaugeVec(prometheus.GaugeOpts{
 			Namespace: e.Namespace,

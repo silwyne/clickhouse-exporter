@@ -2,13 +2,11 @@ package exporter
 
 import (
 	"crypto/tls"
-	"fmt"
 	"net/http"
 	"net/url"
 	"time"
 
 	"github.com/ClickHouse/clickhouse_exporter/internals/exporters"
-	"github.com/ClickHouse/clickhouse_exporter/internals/util"
 	"github.com/ClickHouse/clickhouse_exporter/pkg/clickhouse"
 	"github.com/ClickHouse/clickhouse_exporter/pkg/configs"
 	"github.com/ClickHouse/clickhouse_exporter/pkg/yaml"
@@ -139,50 +137,13 @@ func (e *ExporterHolder) Describe(ch chan<- *prometheus.Desc) {
 
 func (e *ExporterHolder) collect(ch chan<- prometheus.Metric) error {
 
-	// PARSING RESPONSES
-	metrics, err := util.ParseKeyValueResponse(e.basicMetricsExporter.QueryURI, e.clickConn)
-	if err != nil {
-		return fmt.Errorf("error scraping clickhouse url %v: %v", e.basicMetricsExporter.QueryURI, err)
-	}
-
-	asyncMetrics, err := util.ParseKeyValueResponse(e.asyncMetricsExporter.QueryURI, e.clickConn)
-	if err != nil {
-		return fmt.Errorf("error scraping clickhouse url %v: %v", e.asyncMetricsExporter.QueryURI, err)
-	}
-
-	events, err := util.ParseKeyValueResponse(e.eventMetricsExporter.QueryURI, e.clickConn)
-	if err != nil {
-		return fmt.Errorf("error scraping clickhouse url %v: %v", e.eventMetricsExporter.QueryURI, err)
-	}
-
-	parts, err := e.partMetricsExporter.ParseResponse(e.clickConn)
-	if err != nil {
-		return fmt.Errorf("error scraping clickhouse url %v: %v", e.partMetricsExporter.QueryURI, err)
-	}
-
-	disksMetrics, err := e.diskMetricsExporter.ParseResponse(e.clickConn)
-	if err != nil {
-		return fmt.Errorf("error scraping clickhouse url %v: %v", e.diskMetricsExporter.QueryURI, err)
-	}
-
-	query_metrics, err := e.queryMetricsExporter.ParseResponse(e.clickConn)
-	if err != nil {
-		return fmt.Errorf("error scraping clickhouse url %v: %v", e.queryMetricsExporter.QueryURI, err)
-	}
-
-	table_metrics, err := e.tableMetricsExporter.ParseResponse(e.clickConn)
-	if err != nil {
-		return fmt.Errorf("error scraping clickhouse url %v: %v", e.tableMetricsExporter.QueryURI, err)
-	}
-
-	// COLLECTING METRICS BY PROMETHEUS
-	e.basicMetricsExporter.Collect(metrics, ch)
-	e.asyncMetricsExporter.Collect(asyncMetrics, ch)
-	e.eventMetricsExporter.Collect(events, ch)
-	e.partMetricsExporter.Collect(parts, ch)
-	e.diskMetricsExporter.Collect(disksMetrics, ch)
-	e.queryMetricsExporter.Collect(query_metrics, ch)
-	e.tableMetricsExporter.Collect(table_metrics, ch)
+	e.asyncMetricsExporter.Scrap(e.clickConn, ch)
+	e.basicMetricsExporter.Scrap(e.clickConn, ch)
+	e.diskMetricsExporter.Scrap(e.clickConn, ch)
+	e.eventMetricsExporter.Scrap(e.clickConn, ch)
+	e.partMetricsExporter.Scrap(e.clickConn, ch)
+	e.queryMetricsExporter.Scrap(e.clickConn, ch)
+	e.tableMetricsExporter.Scrap(e.clickConn, ch)
 
 	return nil
 }

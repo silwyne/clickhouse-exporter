@@ -41,13 +41,22 @@ func NewDiskMetricsExporter(uri url.URL, namespace string, yamlconfig yaml.YamlC
 	}
 }
 
+func (e *DiskMetricsExporter) Scrap(clickConn clickhouse.ClickhouseConn, ch chan<- prometheus.Metric) error {
+	disksMetrics, err := e.parseResponse(clickConn)
+	if err != nil {
+		return fmt.Errorf("error scraping clickhouse url %v: %v", e.QueryURI, err)
+	}
+	e.collect(disksMetrics, ch)
+	return nil
+}
+
 type diskResult struct {
 	disk       string
 	freeSpace  float64
 	totalSpace float64
 }
 
-func (e *DiskMetricsExporter) ParseResponse(clickConn clickhouse.ClickhouseConn) ([]diskResult, error) {
+func (e *DiskMetricsExporter) parseResponse(clickConn clickhouse.ClickhouseConn) ([]diskResult, error) {
 	data, err := clickConn.ExcecuteQuery(e.QueryURI)
 	if err != nil {
 		return nil, err
@@ -83,7 +92,7 @@ func (e *DiskMetricsExporter) ParseResponse(clickConn clickhouse.ClickhouseConn)
 	return results, nil
 }
 
-func (e *DiskMetricsExporter) Collect(resultLines []diskResult, ch chan<- prometheus.Metric) {
+func (e *DiskMetricsExporter) collect(resultLines []diskResult, ch chan<- prometheus.Metric) {
 	for _, dm := range resultLines {
 		newFreeSpaceMetric := prometheus.NewGaugeVec(prometheus.GaugeOpts{
 			Namespace: e.Namespace,
