@@ -4,11 +4,21 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
+<!-- insertion marker -->
+## [0.1.1](https://github.com/ClickHouse/clickhouse_exporter/releases/tag/0.1.1) - 2025-06-03
+
+### Fixed
+
+- style: renamed Exporter to ExporterHolder([f1f7f44](https://ganj-ipe.yaftar.ir/zafir/data_analytics/clickhouse-exporter/commit/f1f7f4425b809c3dc72cc4b8b8161db827ea310c) by smh_tabatabaei).
+- style: renamed ParsexxxResponse to ParseResponse([b104e0d](https://ganj-ipe.yaftar.ir/zafir/data_analytics/clickhouse-exporter/commit/b104e0dc9c0ae270c50a4701e4b7fb93a6420445) by smh_tabatabaei)
+- fix: bug in table_exporter([d18878e](https://ganj-ipe.yaftar.ir/zafir/data_analytics/clickhouse-exporter/commit/d18878ec1479a8894808262ecf224fb7f1298b84) by smh_tabatabaei)
+
+### Added
+
+- feat: added exporter for table metrics([4af960b](https://ganj-ipe.yaftar.ir/zafir/data_analytics/clickhouse-exporter/commit/4af960b28aa50cb61914a2341b751b21a06863fa) by smh_tabatabaei)
 
 <!-- insertion marker -->
 ## [0.1.0](https://github.com/ClickHouse/clickhouse_exporter/releases/tag/0.1.0) - 2025-06-03
-
-<small>[Compare with first commit](https://github.com/ClickHouse/clickhouse_exporter/compare/3331edb06a30e035617b198db1dffd1145fc56d9...0.1.0)</small>
 
 ### Added
 

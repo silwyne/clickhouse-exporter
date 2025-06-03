@@ -2,13 +2,11 @@ package exporter
 
 import (
 	"crypto/tls"
-	"fmt"
 	"net/http"
 	"net/url"
 	"time"
 
 	"github.com/ClickHouse/clickhouse_exporter/internals/exporters"
-	"github.com/ClickHouse/clickhouse_exporter/internals/util"
 	"github.com/ClickHouse/clickhouse_exporter/pkg/clickhouse"
 	"github.com/ClickHouse/clickhouse_exporter/pkg/configs"
 	"github.com/ClickHouse/clickhouse_exporter/pkg/yaml"
@@ -23,20 +21,21 @@ const (
 
 // Exporter collects clickhouse stats from the given URI and exports them using
 // the prometheus metrics package.
-type Exporter struct {
+type ExporterHolder struct {
 	basicMetricsExporter exporters.BasicMetricsExporter
 	asyncMetricsExporter exporters.AsyncMetricsExporter
 	eventMetricsExporter exporters.EventMetricsExporter
 	partMetricsExporter  exporters.PartsMetricsExporter
 	diskMetricsExporter  exporters.DiskMetricsExporter
 	queryMetricsExporter exporters.QueryMetricsExporter
+	tableMetricsExporter exporters.TableMetricsExporter
 
 	scrapeFailures prometheus.Counter
 	clickConn      clickhouse.ClickhouseConn
 }
 
 // NewExporter returns an initialized Exporter.
-func NewExporter(configs configs.Configuration) *Exporter {
+func NewExporterHolder(configs configs.Configuration) *ExporterHolder {
 
 	uri, err := url.Parse(configs.ClickhouseScrapeURI)
 	if err != nil {
@@ -82,13 +81,20 @@ func NewExporter(configs configs.Configuration) *Exporter {
 		queryFilters.GetMapObject("query_exporter"),
 	)
 
-	return &Exporter{
+	tableMetricsExporter := exporters.NewTableMetricsExporter(
+		*uri,
+		NAMESPACE,
+		queryFilters.GetMapObject("table_exporter"),
+	)
+
+	return &ExporterHolder{
 		basicMetricsExporter: basicMetricsExporter,
 		asyncMetricsExporter: asyncMetricsExporter,
 		eventMetricsExporter: eventMetricsExporter,
 		partMetricsExporter:  partMetricsExporter,
 		diskMetricsExporter:  diskMetricsExporter,
 		queryMetricsExporter: queryMetricsExporter,
+		tableMetricsExporter: tableMetricsExporter,
 		scrapeFailures: prometheus.NewCounter(prometheus.CounterOpts{
 			Namespace: NAMESPACE,
 			Name:      "exporter_scrape_failures_total",
@@ -109,7 +115,7 @@ func NewExporter(configs configs.Configuration) *Exporter {
 
 // Describe describes all the metrics ever exported by the clickhouse exporter. It
 // implements prometheus.Collector.
-func (e *Exporter) Describe(ch chan<- *prometheus.Desc) {
+func (e *ExporterHolder) Describe(ch chan<- *prometheus.Desc) {
 	// We cannot know in advance what metrics the exporter will generate
 	// from clickhouse. So we use the poor man's describe method: Run a collect
 	// and send the descriptors of all the collected metrics.
@@ -129,53 +135,22 @@ func (e *Exporter) Describe(ch chan<- *prometheus.Desc) {
 	<-doneCh
 }
 
-func (e *Exporter) collect(ch chan<- prometheus.Metric) error {
+func (e *ExporterHolder) collect(ch chan<- prometheus.Metric) error {
 
-	// PARSING RESPONSES
-	metrics, err := util.ParseKeyValueResponse(e.basicMetricsExporter.QueryURI, e.clickConn)
-	if err != nil {
-		return fmt.Errorf("error scraping clickhouse url %v: %v", e.basicMetricsExporter.QueryURI, err)
-	}
-
-	asyncMetrics, err := util.ParseKeyValueResponse(e.asyncMetricsExporter.QueryURI, e.clickConn)
-	if err != nil {
-		return fmt.Errorf("error scraping clickhouse url %v: %v", e.asyncMetricsExporter.QueryURI, err)
-	}
-
-	events, err := util.ParseKeyValueResponse(e.eventMetricsExporter.QueryURI, e.clickConn)
-	if err != nil {
-		return fmt.Errorf("error scraping clickhouse url %v: %v", e.eventMetricsExporter.QueryURI, err)
-	}
-
-	parts, err := e.partMetricsExporter.ParsePartsResponse(e.clickConn)
-	if err != nil {
-		return fmt.Errorf("error scraping clickhouse url %v: %v", e.partMetricsExporter.QueryURI, err)
-	}
-
-	disksMetrics, err := e.diskMetricsExporter.ParseDiskResponse(e.clickConn)
-	if err != nil {
-		return fmt.Errorf("error scraping clickhouse url %v: %v", e.diskMetricsExporter.QueryURI, err)
-	}
-
-	query_metrics, err := e.queryMetricsExporter.ParseQueryResponse(e.clickConn)
-	if err != nil {
-		return fmt.Errorf("error scraping clickhouse url %v: %v", e.diskMetricsExporter.QueryURI, err)
-	}
-
-	// COLLECTING METRICS BY PROMETHEUS
-	e.basicMetricsExporter.Collect(metrics, ch)
-	e.asyncMetricsExporter.Collect(asyncMetrics, ch)
-	e.eventMetricsExporter.Collect(events, ch)
-	e.partMetricsExporter.Collect(parts, ch)
-	e.diskMetricsExporter.Collect(disksMetrics, ch)
-	e.queryMetricsExporter.Collect(query_metrics, ch)
+	e.asyncMetricsExporter.Scrap(e.clickConn, ch)
+	e.basicMetricsExporter.Scrap(e.clickConn, ch)
+	e.diskMetricsExporter.Scrap(e.clickConn, ch)
+	e.eventMetricsExporter.Scrap(e.clickConn, ch)
+	e.partMetricsExporter.Scrap(e.clickConn, ch)
+	e.queryMetricsExporter.Scrap(e.clickConn, ch)
+	e.tableMetricsExporter.Scrap(e.clickConn, ch)
 
 	return nil
 }
 
 // Collect fetches the stats from configured clickhouse location and delivers them
 // as Prometheus metrics. It implements prometheus.Collector.
-func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
+func (e *ExporterHolder) Collect(ch chan<- prometheus.Metric) {
 	upValue := 1
 
 	if err := e.collect(ch); err != nil {
@@ -198,4 +173,4 @@ func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 }
 
 // check interface
-var _ prometheus.Collector = (*Exporter)(nil)
+var _ prometheus.Collector = (*ExporterHolder)(nil)
