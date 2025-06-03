@@ -23,7 +23,7 @@ func main() {
 		gatherer = reg
 	}
 
-	e := exporter.NewExporter(configurations)
+	e := exporter.NewExporterHolder(configurations)
 	registerer.MustRegister(e)
 
 	http.Handle(*configurations.MetricsEndpoint, promhttp.HandlerFor(gatherer, promhttp.HandlerOpts{}))

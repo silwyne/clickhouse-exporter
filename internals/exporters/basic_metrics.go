@@ -1,10 +1,12 @@
 package exporters
 
 import (
+	"fmt"
 	"net/url"
 	"strings"
 
 	"github.com/ClickHouse/clickhouse_exporter/internals/util"
+	"github.com/ClickHouse/clickhouse_exporter/pkg/clickhouse"
 	"github.com/ClickHouse/clickhouse_exporter/pkg/queryparser"
 	"github.com/ClickHouse/clickhouse_exporter/pkg/yaml"
 
@@ -38,7 +40,16 @@ func NewBasicMetricsExporter(uri url.URL, namespace string, yamlconfig yaml.Yaml
 	}
 }
 
-func (e *BasicMetricsExporter) Collect(resultLines []util.LineResult, ch chan<- prometheus.Metric) {
+func (e *BasicMetricsExporter) Scrap(clickConn clickhouse.ClickhouseConn, ch chan<- prometheus.Metric) error {
+	metrics, err := util.ParseKeyValueResponse(e.QueryURI, clickConn)
+	if err != nil {
+		return fmt.Errorf("error scraping clickhouse url %v: %v", e.QueryURI, err)
+	}
+	e.collect(metrics, ch)
+	return nil
+}
+
+func (e *BasicMetricsExporter) collect(resultLines []util.LineResult, ch chan<- prometheus.Metric) {
 	for _, am := range resultLines {
 		newMetric := prometheus.NewGaugeVec(prometheus.GaugeOpts{
 			Namespace: e.Namespace,
