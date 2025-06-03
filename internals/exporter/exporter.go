@@ -23,7 +23,7 @@ const (
 
 // Exporter collects clickhouse stats from the given URI and exports them using
 // the prometheus metrics package.
-type Exporter struct {
+type ExporterHolder struct {
 	basicMetricsExporter exporters.BasicMetricsExporter
 	asyncMetricsExporter exporters.AsyncMetricsExporter
 	eventMetricsExporter exporters.EventMetricsExporter
@@ -37,7 +37,7 @@ type Exporter struct {
 }
 
 // NewExporter returns an initialized Exporter.
-func NewExporter(configs configs.Configuration) *Exporter {
+func NewExporterHolder(configs configs.Configuration) *ExporterHolder {
 
 	uri, err := url.Parse(configs.ClickhouseScrapeURI)
 	if err != nil {
@@ -89,7 +89,7 @@ func NewExporter(configs configs.Configuration) *Exporter {
 		queryFilters.GetMapObject("table_exporter"),
 	)
 
-	return &Exporter{
+	return &ExporterHolder{
 		basicMetricsExporter: basicMetricsExporter,
 		asyncMetricsExporter: asyncMetricsExporter,
 		eventMetricsExporter: eventMetricsExporter,
@@ -117,7 +117,7 @@ func NewExporter(configs configs.Configuration) *Exporter {
 
 // Describe describes all the metrics ever exported by the clickhouse exporter. It
 // implements prometheus.Collector.
-func (e *Exporter) Describe(ch chan<- *prometheus.Desc) {
+func (e *ExporterHolder) Describe(ch chan<- *prometheus.Desc) {
 	// We cannot know in advance what metrics the exporter will generate
 	// from clickhouse. So we use the poor man's describe method: Run a collect
 	// and send the descriptors of all the collected metrics.
@@ -137,7 +137,7 @@ func (e *Exporter) Describe(ch chan<- *prometheus.Desc) {
 	<-doneCh
 }
 
-func (e *Exporter) collect(ch chan<- prometheus.Metric) error {
+func (e *ExporterHolder) collect(ch chan<- prometheus.Metric) error {
 
 	// PARSING RESPONSES
 	metrics, err := util.ParseKeyValueResponse(e.basicMetricsExporter.QueryURI, e.clickConn)
@@ -189,7 +189,7 @@ func (e *Exporter) collect(ch chan<- prometheus.Metric) error {
 
 // Collect fetches the stats from configured clickhouse location and delivers them
 // as Prometheus metrics. It implements prometheus.Collector.
-func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
+func (e *ExporterHolder) Collect(ch chan<- prometheus.Metric) {
 	upValue := 1
 
 	if err := e.collect(ch); err != nil {
@@ -212,4 +212,4 @@ func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 }
 
 // check interface
-var _ prometheus.Collector = (*Exporter)(nil)
+var _ prometheus.Collector = (*ExporterHolder)(nil)
