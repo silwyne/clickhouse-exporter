@@ -24,3 +24,9 @@ event_exporter:
 parts_exporter:
   filters:
     - "active = 1"
+
+table_exporter:
+  filters:
+    - "NOT database like 'system'"
+    - "NOT database ilike 'information_schema'"
+  

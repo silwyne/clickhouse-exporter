@@ -55,6 +55,16 @@ func NewQueryMetricsExporter(uri url.URL, namespace string, yamlconfig yaml.Yaml
 	}
 }
 
+func (e *QueryMetricsExporter) Scrap(clickConn clickhouse.ClickhouseConn, ch chan<- prometheus.Metric) error {
+	query_metrics, err := e.parseResponse(clickConn)
+	if err != nil {
+		return fmt.Errorf("error scraping clickhouse url %v: %v", e.QueryURI, err)
+	}
+	e.collect(query_metrics, ch)
+
+	return nil
+}
+
 type QueryMetricsResult struct {
 	user               string
 	query_type         string
@@ -72,7 +82,7 @@ type QueryMetricsResult struct {
 	peak_threads_usage int
 }
 
-func (e *QueryMetricsExporter) ParseQueryResponse(clickConn clickhouse.ClickhouseConn) ([]QueryMetricsResult, error) {
+func (e *QueryMetricsExporter) parseResponse(clickConn clickhouse.ClickhouseConn) ([]QueryMetricsResult, error) {
 	data, err := clickConn.ExcecuteQuery(e.QueryURI)
 	if err != nil {
 		return nil, err
@@ -167,7 +177,7 @@ func (e *QueryMetricsExporter) ParseQueryResponse(clickConn clickhouse.Clickhous
 
 }
 
-func (e *QueryMetricsExporter) Collect(resultLines []QueryMetricsResult, ch chan<- prometheus.Metric) {
+func (e *QueryMetricsExporter) collect(resultLines []QueryMetricsResult, ch chan<- prometheus.Metric) {
 
 	for _, query_metrics := range resultLines {
 
