@@ -39,7 +39,7 @@ docker build . -t clickhouse-exporter \
 docker run -d -p 9116:9116 clickhouse-exporter
 ```
 ## Sample dashboard
-Grafana dashboard could be a start for inspiration https://grafana.com/grafana/dashboards/882-clickhouse
+You can find Grafana dashboard in `./grafana/dashboard.yaml`
 
 ## Using with Prometheus
 just add it like this to your prometheus.yaml
